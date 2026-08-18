@@ -15,6 +15,7 @@ type Tutorial struct {
 	Version          string        `bson:"version" json:"version"`
 	TitleImage       string        `bson:"title_image" json:"title_image"`
 	Roles            []string      `bson:"roles" json:"roles"`
+	IsActive         bool          `bson:"is_active" json:"is_active"`
 	CreatedAt        time.Time     `bson:"created_at" json:"created_at"`
 	UpdatedAt        time.Time     `bson:"updated_at" json:"updated_at"`
 }
