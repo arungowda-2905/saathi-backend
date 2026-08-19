@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-
+	"saathi-backend/routes"
 	"github.com/gofiber/fiber/v2"
-
+	"saathi-backend/test_data"
 	"saathi-backend/config"
 	tutorialhandler "saathi-backend/tutorial-handler"
 	tutorialrepository "saathi-backend/tutorial-repository"

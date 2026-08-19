@@ -3,20 +3,21 @@ package tutorialhandler
 import (
 	"context"
 	"time"
-
+	"saathi-backend/config"
 	"github.com/gofiber/fiber/v2"
-
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"saathi-backend/model"
 	tutorialservice "saathi-backend/tutorial-service"
 )
 
-func CreateTutorial(c fiber.Ctx) error {
+func CreateTutorial(c *fiber.Ctx) error {
 
 	var tutorial model.Tutorial
 
 	// Read JSON body
-	if err := c.Bind().Body(&tutorial); err != nil {
-		return c.Status(400).JSON(fiber.Map{
+	if err := c.BodyParser(&tutorial); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
 	}
@@ -32,13 +33,13 @@ func CreateTutorial(c fiber.Ctx) error {
 	createdTutorial, err := tutorialservice.CreateTutorial(ctx, tutorial)
 
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create tutorial",
 		})
 	}
 
 	// Return created tutorial
-	return c.Status(201).JSON(createdTutorial)
+	return c.Status(fiber.StatusCreated).JSON(createdTutorial)
 }
 
 
