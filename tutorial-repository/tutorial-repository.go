@@ -15,7 +15,10 @@ func InitRepository() {
 	tutorialCollection = config.DB.Collection("tutorials")
 }
 
-func CreateTutorial(ctx context.Context, tutorial model.Tutorial) error {
+func InsertTutorial(
+	ctx context.Context,
+	tutorial model.Tutorial,
+) error {
 
 	_, err := tutorialCollection.InsertOne(ctx, tutorial)
 
