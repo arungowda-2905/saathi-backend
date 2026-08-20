@@ -2,41 +2,36 @@ package main
 
 import (
 	"log"
-	"saathi-backend/routes"
-	"github.com/gofiber/fiber/v2"
-	"saathi-backend/test_data"
+
 	"saathi-backend/config"
-	tutorialhandler "saathi-backend/tutorial-handler"
+	"saathi-backend/routes"
 	tutorialrepository "saathi-backend/tutorial-repository"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
 
 	// Connect to MongoDB
-	err := config.ConnectDB()
-	if err != nil {
+	if err := config.ConnectDB(); err != nil {
 		log.Fatal("MongoDB connection failed:", err)
 	}
 
-	// Initialize repository
-	tutorialrepository.InitRepository()
-
-	// Create Fiber app
-	app := fiber.New()
-
-	// POST API
-	app.Post("saathi/api/tutorials/v1", tutorialhandler.CreateTutorial)
-
-	// Start server
-	log.Println("Server running on http://localhost:8080")
-
 	defer config.DisconnectDB()
 
-	err = test_data.SeedTutorials()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Initialize MongoDB repository
+	tutorialrepository.InitRepository()
+
+	// Create Fiber application
+	//app := fiber.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit: 500 * 1024 * 1024, // 500 MB
+	})
+	//app.Post("/saathi/api/videos/upload", tutorialhandler.HandleVideoUpload)
+	// Register all APIs
 	routes.SetupRoutes(app)
+
+	log.Println("Server running on http://localhost:8080")
 
 	if err := app.Listen(":8080"); err != nil {
 		log.Fatal(err)
