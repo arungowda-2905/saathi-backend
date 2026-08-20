@@ -1,12 +1,14 @@
-package tutorialhandler
+package handlers
 
 import (
 	"context"
 	"time"
-	"saathi-backend/config"
+
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+
+	"saathi-backend/config"
 	"saathi-backend/model"
 	tutorialservice "saathi-backend/tutorial-service"
 )
@@ -41,8 +43,6 @@ func CreateTutorial(c *fiber.Ctx) error {
 	// Return created tutorial
 	return c.Status(fiber.StatusCreated).JSON(createdTutorial)
 }
-
-
 
 func GetTutorialByID(c *fiber.Ctx) error {
 

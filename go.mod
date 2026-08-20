@@ -2,13 +2,11 @@ module saathi-backend
 
 go 1.26.6
 
-require (
-	github.com/gofiber/fiber/v2 v2.52.15
-	go.mongodb.org/mongo-driver/v2 v2.8.0
-)
+require go.mongodb.org/mongo-driver/v2 v2.8.0
 
 require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/gofiber/fiber/v2 v2.52.15
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
