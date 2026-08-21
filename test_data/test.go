@@ -3,10 +3,11 @@ package test_data
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"saathi-backend/config"
 	"saathi-backend/model"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func SeedTutorials() error {
@@ -19,8 +20,8 @@ func SeedTutorials() error {
 	tutorials := []interface{}{
 
 		model.Tutorial{
-
-			Video_Bucket:     "455719_Iceland_Iceland83_1280x720",
+			Video_ID:         uuid.New(),
+			Video_Bucket:     "455719_Iceland_Iceland83_1280x720.mp4",
 			AppName:          "saathi",
 			VideoTitle:       "Introduction to Redis",
 			VideoDescription: "Learn the basics of Redis",
@@ -33,8 +34,8 @@ func SeedTutorials() error {
 		},
 
 		model.Tutorial{
-
-			Video_Bucket:     "455719_Iceland_Iceland83_1280x720",
+			Video_ID:         uuid.New(),
+			Video_Bucket:     "455719_Iceland_Iceland83_1280x720.mp4",
 			AppName:          "saathi",
 			VideoTitle:       "Introduction to Go",
 			VideoDescription: "Learn the basics of Golang",
@@ -47,8 +48,8 @@ func SeedTutorials() error {
 		},
 
 		model.Tutorial{
-
-			Video_Bucket:     "455719_Iceland_Iceland83_1280x720",
+			Video_ID:         uuid.New(),
+			Video_Bucket:     "455719_Iceland_Iceland83_1280x720.mp4",
 			AppName:          "saathi",
 			VideoTitle:       "MongoDB Introduction",
 			VideoDescription: "Learn MongoDB fundamentals",
@@ -61,8 +62,8 @@ func SeedTutorials() error {
 		},
 
 		model.Tutorial{
-
-			Video_Bucket:     "455719_Iceland_Iceland83_1280x720",
+			Video_ID:         uuid.New(),
+			Video_Bucket:     "455719_Iceland_Iceland83_1280x720.mp4",
 			AppName:          "saathi",
 			VideoTitle:       "Kafka Basics",
 			VideoDescription: "Learn Apache Kafka",

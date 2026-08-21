@@ -6,6 +6,7 @@ import (
 	"saathi-backend/config"
 	"saathi-backend/model"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -28,21 +29,23 @@ func InsertTutorial(
 
 func GetTutorialByID(
 	ctx context.Context,
-	videoId string,
+	videoID uuid.UUID,
 	userRole string,
 ) (model.Tutorial, error) {
 
 	var tutorial model.Tutorial
 
 	filter := bson.M{
-		"video_id":  videoId,
+		"video_id":  videoID,
 		"is_active": true,
 		"roles": bson.M{
 			"$in": []string{userRole},
 		},
 	}
 
-	err := tutorialCollection.FindOne(ctx, filter).Decode(&tutorial)
+	err := tutorialCollection.
+		FindOne(ctx, filter).
+		Decode(&tutorial)
 
 	if err != nil {
 		return model.Tutorial{}, err

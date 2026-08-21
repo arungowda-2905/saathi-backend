@@ -10,6 +10,8 @@ import (
 	tutorialrepository "saathi-backend/tutorial-repository"
 	"time"
 
+	uuid "github.com/google/uuid"
+
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -38,12 +40,30 @@ func CreateNewTutorial(
 
 func GetTutorialByID(
 	videoId string,
-	ctx context.Context, userRole string,
+	ctx context.Context,
+	userRole string,
 ) ([]byte, error) {
 
-	tutorial, _ := tutorialrepository.GetTutorialByID(ctx, videoId, userRole)
+	if videoId == "" {
+		return nil, fmt.Errorf("video ID is required")
+	}
 
-	videoFileName := tutorial.Video_Bucket
+	// Convert URL string to UUID
+	videoUUID, err := uuid.Parse(videoId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid video ID %q: %w", videoId, err)
+	}
+
+	// Find tutorial in MongoDB
+	tutorial, err := tutorialrepository.GetTutorialByID(
+		ctx,
+		videoUUID,
+		userRole,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	bucketName := os.Getenv("GCS_VIDEO_BUCKET")
 	videoPrefix := os.Getenv("GCS_VIDEO_PREFIX")
 
@@ -59,14 +79,12 @@ func GetTutorialByID(
 		)
 	}
 
-	if videoId == "" {
-		return nil, fmt.Errorf(
-			"video ID is required",
-		)
-	}
+	videoFileName := tutorial.Video_Bucket
 
-	// tutorials/picking.mp4
-	videoPath := path.Join(videoPrefix, videoFileName)
+	videoPath := path.Join(
+		videoPrefix,
+		videoFileName,
+	)
 
 	gcsService, err := gcs.NewService(ctx)
 	if err != nil {
