@@ -20,12 +20,12 @@ import (
 func HandleVideoUpload(c *fiber.Ctx) error {
 
 	// Get video file
-	videoFile, err := c.FormFile("video")
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Video file is required",
-		})
-	}
+	//videoFile, err := c.FormFile("video")
+	// if err != nil {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"error": "Video file is required",
+	// 	})
+	// }
 
 	// Get metadata sent from frontend FormData
 	title := c.FormValue("title")
@@ -51,7 +51,7 @@ func HandleVideoUpload(c *fiber.Ctx) error {
 		VideoDescription: description,
 
 		// Temporary: later this will be the GCS video URL
-		Video_ID: videoFile.Filename,
+		//Video_ID: videoFile.Filename,
 
 		Roles: []string{
 			assignToRole,
@@ -114,6 +114,7 @@ func GetTutorialByID(c *fiber.Ctx) error {
 
 		vid,
 		ctx,
+		userRole,
 	)
 
 	if err != nil {
@@ -137,7 +138,7 @@ func GetTutorialByID(c *fiber.Ctx) error {
 
 func GetDetailsByRole(c *fiber.Ctx) error {
 
-	userRole := c.Get("X-Roles")
+	userRole := c.Get("X-Role")
 
 	if userRole == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

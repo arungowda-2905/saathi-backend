@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"saathi-backend/config"
+	"saathi-backend/test_data"
 
 	"saathi-backend/routes"
 	tutorialrepository "saathi-backend/tutorial-repository"
@@ -23,9 +24,9 @@ func main() {
 		log.Fatal("MongoDB connection failed:", err)
 	}
 
-	// if err := test_data.SeedTutorials(); err != nil {
-	// 	log.Fatalf("Failed to seed tutorials: %v", err)
-	// }
+	if err := test_data.SeedTutorials(); err != nil {
+		log.Fatalf("Failed to seed tutorials: %v", err)
+	}
 
 	defer config.DisconnectDB()
 

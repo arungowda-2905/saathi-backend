@@ -23,7 +23,7 @@ func CreateNewTutorial(
 
 	// Generate timestamps
 	now := time.Now()
-	tutorial.Video_ID = "Hardcoded"
+	//tutorial.Video_ID = "Hardcoded"
 	tutorial.CreatedAt = now
 	tutorial.UpdatedAt = now
 
@@ -38,9 +38,12 @@ func CreateNewTutorial(
 
 func GetTutorialByID(
 	videoId string,
-	ctx context.Context,
+	ctx context.Context, userRole string,
 ) ([]byte, error) {
 
+	tutorial, _ := tutorialrepository.GetTutorialByID(ctx, videoId, userRole)
+
+	videoFileName := tutorial.Video_Bucket
 	bucketName := os.Getenv("GCS_VIDEO_BUCKET")
 	videoPrefix := os.Getenv("GCS_VIDEO_PREFIX")
 
@@ -61,7 +64,7 @@ func GetTutorialByID(
 			"video ID is required",
 		)
 	}
-	videoFileName := videoId + ".mp4"
+
 	// tutorials/picking.mp4
 	videoPath := path.Join(videoPrefix, videoFileName)
 
