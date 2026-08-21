@@ -2,7 +2,7 @@ package tutorialservice
 
 import (
 	"context"
-	
+
 	"time"
 
 	"saathi-backend/model"
@@ -16,7 +16,6 @@ func CreateNewTutorial(
 	tutorial model.Tutorial,
 ) (model.Tutorial, error) {
 
-	
 	// Generate unique ID
 	tutorial.ID = bson.NewObjectID()
 

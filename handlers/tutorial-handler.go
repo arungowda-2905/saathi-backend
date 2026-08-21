@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
+	"strings"
 	"time"
-
 
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -84,7 +84,6 @@ func HandleVideoUpload(c *fiber.Ctx) error {
 		"data":    createdTutorial,
 	})
 }
-	
 
 func GetTutorialByID(c *fiber.Ctx) error {
 
@@ -156,63 +155,46 @@ func GetTutorialByID(c *fiber.Ctx) error {
 
 func GetDetailsByRole(c *fiber.Ctx) error {
 
-	// Get roles from authentication middleware
-	userRole := c.Get("X-Role")
+	userRole := c.Get("X-Roles")
 
 	if userRole == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "User roles not found",
+			"error": "User role not found",
 		})
 	}
 
-	userRoles := []string{userRole}
+	roles := strings.Split(userRole, ",")
 
-	if len(userRoles) == 0 {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "User has no roles",
-		})
+	for i := range roles {
+		roles[i] = strings.TrimSpace(roles[i])
 	}
 
-	// Find tutorials that match ANY of the user's roles
 	filter := bson.M{
-		"roles": bson.M{
-			"$in": userRoles,
-		},
+		"roles":     bson.M{"$in": roles},
 		"is_active": true,
 	}
 
-	// Only return the fields you need
 	projection := bson.M{
-		"_id":         1,
-		"video_title": 1,
-		"app_name":    1,
-		"video_link":  1,
-		"created_at":  1,
+		"_id":               1,
+		"app_name":          1,
+		"video_title":       1,
+		"video_description": 1,
 	}
 
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		10*time.Second,
-	)
+	opts := options.Find().SetProjection(projection)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := config.DB.
-		Collection("tutorials").
-		Find(
-			ctx,
-			filter,
-			options.Find().SetProjection(projection),
-		)
-
+	cursor, err := config.DB.Collection("tutorials").Find(ctx, filter, opts)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch tutorials",
 		})
 	}
-
 	defer cursor.Close(ctx)
 
-	var tutorials []model.Tutorial
+	var tutorials []model.TutorialDetail
 
 	if err := cursor.All(ctx, &tutorials); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -220,7 +202,53 @@ func GetDetailsByRole(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"data": tutorials,
-	})
+	return c.Status(fiber.StatusOK).JSON(tutorials)
 }
+
+// func GetAllTutorials(c *fiber.Ctx) error {
+
+// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// 	defer cancel()
+
+// 	cursor, err := config.DB.Collection("tutorials").Find(ctx, bson.M{})
+// 	if err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to fetch tutorials",
+// 		})
+// 	}
+// 	defer cursor.Close(ctx)
+
+// 	var tutorials []model.Tutorial
+
+// 	if err := cursor.All(ctx, &tutorials); err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to decode tutorials",
+// 		})
+// 	}
+
+// 	return c.Status(fiber.StatusOK).JSON(tutorials)
+// }
+
+// func GetTutorialsByAppName(c *fiber.Ctx) error {
+
+// 	appName := c.Params("appName")
+
+// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// 	defer cancel()
+
+// 	cursor, err := config.DB.Collection("tutorials").Find(ctx, bson.M{"app_name": appName})
+// 	if err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to fetch tutorials",
+// 		})
+// 	}
+// 	defer cursor.Close(ctx)
+
+// 	var tutorials []model.Tutorial
+// 	if err := cursor.All(ctx, &tutorials); err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to decode tutorials",
+// 		})
+// 	}
+// 	return c.Status(fiber.StatusOK).JSON(tutorials)
+// }
