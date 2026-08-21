@@ -13,7 +13,7 @@ func SetupRoutes(app *fiber.App) {
 	// Upload video with metadata
 	api.Post("/videos/v1", handlers.HandleVideoUpload)
 
-	api.Get("/v1/:id", handlers.GetTutorialByID)
+	api.Get("/v1/:videoId", handlers.GetTutorialByID)
 	api.Get("/details/v1", handlers.GetDetailsByRole)
 
 }

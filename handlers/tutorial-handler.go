@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -87,17 +89,13 @@ func HandleVideoUpload(c *fiber.Ctx) error {
 
 func GetTutorialByID(c *fiber.Ctx) error {
 
-	id := c.Params("id")
-
-	// Convert string ID to MongoDB ObjectID
-	objectID, err := bson.ObjectIDFromHex(id)
-	if err != nil {
+	vid := c.Params("videoId")
+	if vid == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid tutorial ID",
+			"error": "Video ID is required",
 		})
 	}
 
-	// Get user's role
 	userRole := c.Get("X-Role")
 
 	if userRole == "" {
@@ -106,51 +104,35 @@ func GetTutorialByID(c *fiber.Ctx) error {
 		})
 	}
 
-	collection := config.DB.Collection("tutorials")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		30*time.Second,
+	)
 	defer cancel()
 
-	var tutorial model.Tutorial
+	videoBytes, err := tutorialservice.GetTutorialByID(
 
-	err = collection.FindOne(
+		vid,
 		ctx,
-		bson.M{
-			"_id":       objectID,
-			"is_active": true,
-		},
-	).Decode(&tutorial)
+	)
 
 	if err != nil {
 
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "Tutorial not found",
 			})
 		}
 
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
+			"error": "Failed to fetch tutorial",
 		})
 	}
 
-	// Check whether user's role is allowed
-	allowed := false
+	c.Set("Content-Type", "video/mp4")
+	c.Set("Content-Length", strconv.Itoa(len(videoBytes)))
 
-	for _, role := range tutorial.Roles {
-		if role == userRole {
-			allowed = true
-			break
-		}
-	}
-
-	if !allowed {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "You are not authorized to access this tutorial",
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(tutorial)
+	return c.Send(videoBytes)
 }
 
 func GetDetailsByRole(c *fiber.Ctx) error {

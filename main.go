@@ -9,10 +9,15 @@ import (
 	tutorialrepository "saathi-backend/tutorial-repository"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
 )
 
 func main() {
 
+	err := godotenv.Load("dev.env")
+	if err != nil {
+		log.Fatal("Error loading dev.env")
+	}
 	// Connect to MongoDB
 	if err := config.ConnectDB(); err != nil {
 		log.Fatal("MongoDB connection failed:", err)
