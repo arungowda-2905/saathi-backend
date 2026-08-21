@@ -21,7 +21,7 @@ func CreateNewTutorial(
 
 	// Generate timestamps
 	now := time.Now()
-	tutorial.VideoLink = "Hardcoded"
+	tutorial.Video_ID = "Hardcoded"
 	tutorial.CreatedAt = now
 	tutorial.UpdatedAt = now
 
