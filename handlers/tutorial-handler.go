@@ -51,7 +51,7 @@ func HandleVideoUpload(c *fiber.Ctx) error {
 		VideoDescription: description,
 
 		// Temporary: later this will be the GCS video URL
-		VideoLink: videoFile.Filename,
+		Video_ID: videoFile.Filename,
 
 		Roles: []string{
 			assignToRole,
@@ -157,7 +157,7 @@ func GetDetailsByRole(c *fiber.Ctx) error {
 	}
 
 	projection := bson.M{
-		"_id":               1,
+		"video_id":          1,
 		"app_name":          1,
 		"video_title":       1,
 		"video_description": 1,
@@ -186,51 +186,3 @@ func GetDetailsByRole(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(tutorials)
 }
-
-// func GetAllTutorials(c *fiber.Ctx) error {
-
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-// 	defer cancel()
-
-// 	cursor, err := config.DB.Collection("tutorials").Find(ctx, bson.M{})
-// 	if err != nil {
-// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 			"error": "Failed to fetch tutorials",
-// 		})
-// 	}
-// 	defer cursor.Close(ctx)
-
-// 	var tutorials []model.Tutorial
-
-// 	if err := cursor.All(ctx, &tutorials); err != nil {
-// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 			"error": "Failed to decode tutorials",
-// 		})
-// 	}
-
-// 	return c.Status(fiber.StatusOK).JSON(tutorials)
-// }
-
-// func GetTutorialsByAppName(c *fiber.Ctx) error {
-
-// 	appName := c.Params("appName")
-
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-// 	defer cancel()
-
-// 	cursor, err := config.DB.Collection("tutorials").Find(ctx, bson.M{"app_name": appName})
-// 	if err != nil {
-// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 			"error": "Failed to fetch tutorials",
-// 		})
-// 	}
-// 	defer cursor.Close(ctx)
-
-// 	var tutorials []model.Tutorial
-// 	if err := cursor.All(ctx, &tutorials); err != nil {
-// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 			"error": "Failed to decode tutorials",
-// 		})
-// 	}
-// 	return c.Status(fiber.StatusOK).JSON(tutorials)
-// }
