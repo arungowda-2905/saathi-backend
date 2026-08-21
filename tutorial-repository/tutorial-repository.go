@@ -6,6 +6,7 @@ import (
 	"saathi-backend/config"
 	"saathi-backend/model"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
@@ -23,4 +24,29 @@ func InsertTutorial(
 	_, err := tutorialCollection.InsertOne(ctx, tutorial)
 
 	return err
+}
+
+func GetTutorialByID(
+	ctx context.Context,
+	videoId string,
+	userRole string,
+) (model.Tutorial, error) {
+
+	var tutorial model.Tutorial
+
+	filter := bson.M{
+		"video_id":  videoId,
+		"is_active": true,
+		"roles": bson.M{
+			"$in": []string{userRole},
+		},
+	}
+
+	err := tutorialCollection.FindOne(ctx, filter).Decode(&tutorial)
+
+	if err != nil {
+		return model.Tutorial{}, err
+	}
+
+	return tutorial, nil
 }
