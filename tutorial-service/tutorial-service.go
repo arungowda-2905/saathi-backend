@@ -171,3 +171,36 @@ func (s *TutorialService) UploadVideo(
 	// Return only filename
 	return fileName, nil
 }
+
+// func (s *TutorialService) UploadVideo(
+// 	ctx context.Context,
+// 	originalFileName string,
+// 	file io.Reader,
+// ) (string, error) {
+
+// 	if s.bucketName == "" {
+// 		return "", fmt.Errorf("GCS_VIDEO_BUCKET is not configured")
+// 	}
+
+// 	// Keep the original filename
+// 	fileName := filepath.Base(originalFileName)
+
+// 	// GCS object path
+// 	objectName := path.Join(
+// 		strings.TrimSuffix(s.prefix, "/"),
+// 		fileName,
+// 	)
+
+// 	err := s.repository.UploadVideo(
+// 		ctx,
+// 		s.bucketName,
+// 		objectName,
+// 		file,
+// 	)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to upload video: %w", err)
+// 	}
+
+// 	// Return only the original filename
+// 	return fileName, nil
+// }

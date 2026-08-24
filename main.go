@@ -8,7 +8,6 @@ import (
 	"saathi-backend/gcs"
 	"saathi-backend/handlers"
 	"saathi-backend/routes"
-	"saathi-backend/test_data"
 	tutorialrepository "saathi-backend/tutorial-repository"
 	tutorialservice "saathi-backend/tutorial-service"
 
@@ -28,9 +27,9 @@ func main() {
 	}
 	defer config.DisconnectDB()
 
-	if err := test_data.SeedTutorials(); err != nil {
-		log.Fatalf("Failed to seed tutorials: %v", err)
-	}
+	// if err := test_data.SeedTutorials(); err != nil {
+	// 	log.Fatalf("Failed to seed tutorials: %v", err)
+	// }
 
 	tutorialrepository.InitRepository()
 
