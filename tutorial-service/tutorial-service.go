@@ -136,27 +136,30 @@ func (s *TutorialService) UploadVideo(
 		return "", fmt.Errorf("GCS_VIDEO_BUCKET is not configured")
 	}
 
-	extension := filepath.Ext(originalFileName)
-
-	// Optional: normalize extension.
-	extension = strings.ToLower(extension)
+	extension := strings.ToLower(filepath.Ext(originalFileName))
 
 	fileName := fmt.Sprintf(
-		"%s/%d%s",
-		strings.TrimSuffix(s.prefix, "/"),
+		"%d%s",
 		time.Now().UnixNano(),
 		extension,
+	)
+
+	// Full path used for GCS
+	objectName := path.Join(
+		strings.TrimSuffix(s.prefix, "/"),
+		fileName,
 	)
 
 	err := s.repository.UploadVideo(
 		ctx,
 		s.bucketName,
-		fileName,
+		objectName,
 		file,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to upload video: %w", err)
 	}
 
+	// Return only filename
 	return fileName, nil
 }
