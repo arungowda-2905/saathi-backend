@@ -2,8 +2,11 @@ package tutorialrepository
 
 import (
 	"context"
+	"fmt"
+	"io"
 
 	"saathi-backend/config"
+	"saathi-backend/gcs"
 	"saathi-backend/model"
 
 	"github.com/google/uuid"
@@ -52,4 +55,34 @@ func GetTutorialByID(
 	}
 
 	return tutorial, nil
+}
+
+type TutorialRepository struct {
+	gcsService *gcs.Service
+}
+
+func NewTutorialRepository(gcsService *gcs.Service) *TutorialRepository {
+	return &TutorialRepository{
+		gcsService: gcsService,
+	}
+}
+
+func (r *TutorialRepository) UploadVideo(
+	ctx context.Context,
+	bucketName string,
+	fileName string,
+	file io.Reader,
+) error {
+
+	err := r.gcsService.UploadVideo(
+		ctx,
+		bucketName,
+		fileName,
+		file,
+	)
+	if err != nil {
+		return fmt.Errorf("GCS upload error: %w", err)
+	}
+
+	return nil
 }

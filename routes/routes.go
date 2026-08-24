@@ -6,14 +6,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App) {
+func SetupRoutes(app *fiber.App, tutorialHandler *handlers.TutorialHandler) {
 
 	api := app.Group("/saathi/api")
 
-	// Upload video with metadata
-	api.Post("/videos/v1", handlers.HandleVideoUpload)
+	api.Post("/v1/upload", tutorialHandler.UploadVideo)
 
 	api.Get("/v1/:videoId", handlers.GetTutorialByID)
 	api.Get("/details/v1", handlers.GetDetailsByRole)
-
 }

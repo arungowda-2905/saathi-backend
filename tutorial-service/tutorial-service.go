@@ -3,11 +3,14 @@ package tutorialservice
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path"
+	"path/filepath"
 	gcs "saathi-backend/gcs"
 	"saathi-backend/model"
 	tutorialrepository "saathi-backend/tutorial-repository"
+	"strings"
 	"time"
 
 	uuid "github.com/google/uuid"
@@ -105,4 +108,55 @@ func GetTutorialByID(
 	}
 
 	return videoBytes, nil
+}
+
+type TutorialService struct {
+	repository *tutorialrepository.TutorialRepository
+	bucketName string
+	prefix     string
+}
+
+func NewTutorialService(
+	repository *tutorialrepository.TutorialRepository,
+) *TutorialService {
+	return &TutorialService{
+		repository: repository,
+		bucketName: os.Getenv("GCS_VIDEO_BUCKET"),
+		prefix:     os.Getenv("GCS_VIDEO_PREFIX"),
+	}
+}
+
+func (s *TutorialService) UploadVideo(
+	ctx context.Context,
+	originalFileName string,
+	file io.Reader,
+) (string, error) {
+
+	if s.bucketName == "" {
+		return "", fmt.Errorf("GCS_VIDEO_BUCKET is not configured")
+	}
+
+	extension := filepath.Ext(originalFileName)
+
+	// Optional: normalize extension.
+	extension = strings.ToLower(extension)
+
+	fileName := fmt.Sprintf(
+		"%s/%d%s",
+		strings.TrimSuffix(s.prefix, "/"),
+		time.Now().UnixNano(),
+		extension,
+	)
+
+	err := s.repository.UploadVideo(
+		ctx,
+		s.bucketName,
+		fileName,
+		file,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to upload video: %w", err)
+	}
+
+	return fileName, nil
 }

@@ -24,6 +24,31 @@ func NewService(ctx context.Context) (*Service, error) {
 	}, nil
 }
 
+func (s *Service) UploadVideo(
+	ctx context.Context,
+	bucketName string,
+	fileName string,
+	file io.Reader,
+) error {
+
+	writer := s.client.
+		Bucket(bucketName).
+		Object(fileName).
+		NewWriter(ctx)
+
+	_, err := io.Copy(writer, file)
+	if err != nil {
+		writer.Close()
+		return fmt.Errorf("failed to upload video: %w", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to close GCS writer: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Service) GetVideo(
 	ctx context.Context,
 	bucketName string,
