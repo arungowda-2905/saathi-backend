@@ -14,26 +14,34 @@ import (
 	"time"
 
 	uuid "github.com/google/uuid"
-
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func CreateNewTutorial(
 	ctx context.Context,
 	tutorial model.Tutorial,
+	gcsFileName string,
 ) (model.Tutorial, error) {
 
-	// Generate unique ID
-	tutorial.ID = bson.NewObjectID()
+	// Generate UUID for the video
+	videoID := uuid.New()
 
-	// Generate timestamps
+	// Set generated UUID
+	tutorial.Video_ID = videoID
+
+	// Store GCS filename internally
+	tutorial.Video_Bucket = gcsFileName
+
+	// Set timestamps
 	now := time.Now()
-	//tutorial.Video_ID = "Hardcoded"
 	tutorial.CreatedAt = now
 	tutorial.UpdatedAt = now
 
 	// Insert into MongoDB
-	err := tutorialrepository.InsertTutorial(ctx, tutorial)
+	err := tutorialrepository.InsertTutorial(
+		ctx,
+		tutorial,
+	)
+
 	if err != nil {
 		return model.Tutorial{}, err
 	}

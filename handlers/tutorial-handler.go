@@ -17,9 +17,87 @@ import (
 	tutorialservice "saathi-backend/tutorial-service"
 )
 
+type TutorialHandler struct {
+	service *tutorialservice.TutorialService
+}
+
+func NewTutorialHandler(service *tutorialservice.TutorialService) *TutorialHandler {
+	return &TutorialHandler{
+		service: service,
+	}
+}
+func HandleVideoUpload(c *fiber.Ctx) error {
+
+	// Filename returned by colleague's upload API
+	videoFileName := c.FormValue("videoFileName")
+
+	if videoFileName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Video file is required",
+		})
+	}
+
+	// Metadata sent from frontend
+	title := c.FormValue("title")
+	description := c.FormValue("description")
+	applicationName := c.FormValue("applicationName")
+	assignToRole := c.FormValue("assignToRole")
+
+	// Validate metadata
+	if title == "" ||
+		description == "" ||
+		applicationName == "" ||
+		assignToRole == "" {
+
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "All metadata fields are required",
+		})
+	}
+
+	// Create tutorial object
+	tutorial := model.Tutorial{
+		AppName:          applicationName,
+		VideoTitle:       title,
+		VideoDescription: description,
+
+		Roles: []string{
+			assignToRole,
+		},
+
+		Version:    "1.0",
+		TitleImage: "",
+		IsActive:   true,
+	}
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
+	defer cancel()
+
+	// Generate UUID and save video details
+	// UUID is mapped with the GCS filename in MongoDB
+	_, err := tutorialservice.CreateNewTutorial(
+		ctx,
+		tutorial,
+		videoFileName,
+	)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to create tutorial",
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"message": "Video uploaded successfully",
+	})
+}
+
 func GetTutorialByID(c *fiber.Ctx) error {
 
 	vid := c.Params("videoId")
+
 	if vid == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Video ID is required",
@@ -41,7 +119,6 @@ func GetTutorialByID(c *fiber.Ctx) error {
 	defer cancel()
 
 	videoBytes, err := tutorialservice.GetTutorialByID(
-
 		vid,
 		ctx,
 		userRole,
@@ -83,7 +160,9 @@ func GetDetailsByRole(c *fiber.Ctx) error {
 	}
 
 	filter := bson.M{
-		"roles":     bson.M{"$in": roles},
+		"roles": bson.M{
+			"$in": roles,
+		},
 		"is_active": true,
 	}
 
@@ -96,15 +175,22 @@ func GetDetailsByRole(c *fiber.Ctx) error {
 
 	opts := options.Find().SetProjection(projection)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
 	defer cancel()
 
-	cursor, err := config.DB.Collection("tutorials").Find(ctx, filter, opts)
+	cursor, err := config.DB.
+		Collection("tutorials").
+		Find(ctx, filter, opts)
+
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch tutorials",
 		})
 	}
+
 	defer cursor.Close(ctx)
 
 	var tutorials []model.TutorialDetail
@@ -116,16 +202,6 @@ func GetDetailsByRole(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(tutorials)
-}
-
-type TutorialHandler struct {
-	service *tutorialservice.TutorialService
-}
-
-func NewTutorialHandler(service *tutorialservice.TutorialService) *TutorialHandler {
-	return &TutorialHandler{
-		service: service,
-	}
 }
 
 func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
