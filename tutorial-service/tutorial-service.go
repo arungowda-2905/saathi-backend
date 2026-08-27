@@ -2,11 +2,13 @@ package tutorialservice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
+	"saathi-backend/dto"
 	gcs "saathi-backend/gcs"
 	"saathi-backend/model"
 	tutorialrepository "saathi-backend/tutorial-repository"
@@ -16,61 +18,117 @@ import (
 	uuid "github.com/google/uuid"
 )
 
-func CreateNewTutorial(
+var ErrRoleNotFound = errors.New("user role not found")
+var ErrInvalidVideoID = fmt.Errorf("invalid video ID")
+
+type TutorialService struct {
+	repository *tutorialrepository.TutorialRepository
+	bucketName string
+	prefix     string
+}
+
+func NewTutorialService(
+	repository *tutorialrepository.TutorialRepository,
+) *TutorialService {
+	return &TutorialService{
+		repository: repository,
+		bucketName: os.Getenv("GCS_VIDEO_BUCKET"),
+		prefix:     os.Getenv("GCS_VIDEO_PREFIX"),
+	}
+}
+
+func (s *TutorialService) CreateNewTutorial(
 	ctx context.Context,
 	tutorial model.Tutorial,
 	gcsFileName string,
 ) (model.Tutorial, error) {
 
-	// Generate UUID for the video
+	if gcsFileName == "" {
+		return model.Tutorial{}, fmt.Errorf(
+			"gcs file name is required",
+		)
+	}
+
+	if tutorial.AppName == "" {
+		return model.Tutorial{}, fmt.Errorf(
+			"application name is required",
+		)
+	}
+
+	if tutorial.VideoTitle == "" {
+		return model.Tutorial{}, fmt.Errorf(
+			"video title is required",
+		)
+	}
+
+	if tutorial.VideoDescription == "" {
+		return model.Tutorial{}, fmt.Errorf(
+			"video description is required",
+		)
+	}
+
+	if len(tutorial.Roles) == 0 {
+		return model.Tutorial{}, fmt.Errorf(
+			"at least one role is required",
+		)
+	}
+
+	// Generate UUID for the video.
 	videoID := uuid.New()
 
-	// Set generated UUID
+	// UUID is exposed to the application.
 	tutorial.Video_ID = videoID
 
-	// Store GCS filename internally
+	// Actual GCS filename is stored internally.
 	tutorial.Video_Bucket = gcsFileName
 
-	// Set timestamps
+	// Set timestamps.
 	now := time.Now()
+
 	tutorial.CreatedAt = now
 	tutorial.UpdatedAt = now
 
-	// Insert into MongoDB
-	err := tutorialrepository.InsertTutorial(
+	// Save tutorial metadata.
+	err := s.repository.InsertTutorial(
 		ctx,
 		tutorial,
 	)
 
 	if err != nil {
-		return model.Tutorial{}, err
+		return model.Tutorial{}, fmt.Errorf(
+			"failed to insert tutorial: %w",
+			err,
+		)
 	}
 
 	return tutorial, nil
 }
 
-func GetTutorialByID(
+func (s *TutorialService) GetTutorialByID(
 	videoId string,
 	ctx context.Context,
-	userRole string,
-) ([]byte, error) {
+	// userRole string,
+) (videoBytes []byte, err error) {
 
 	if videoId == "" {
 		return nil, fmt.Errorf("video ID is required")
 	}
 
-	// Convert URL string to UUID
 	videoUUID, err := uuid.Parse(videoId)
 	if err != nil {
-		return nil, fmt.Errorf("invalid video ID %q: %w", videoId, err)
+		return nil, fmt.Errorf(
+			"%w: %s",
+			ErrInvalidVideoID,
+			videoId,
+		)
 	}
 
-	// Find tutorial in MongoDB
-	tutorial, err := tutorialrepository.GetTutorialByID(
+	tutorial, err := s.repository.GetTutorialByID(
 		ctx,
 		videoUUID,
-		userRole,
+		//userRole,
 	)
+
 	if err != nil {
 		return nil, err
 	}
@@ -104,34 +162,26 @@ func GetTutorialByID(
 			err,
 		)
 	}
+	defer func() {
+		if closeErr := gcsService.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close GCS service: %w", closeErr)
+		}
+	}()
 
-	videoBytes, err := gcsService.GetVideo(
+	videoBytes, err = gcsService.GetVideo(
 		ctx,
 		bucketName,
 		videoPath,
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"failed to fetch video from GCS: %w",
+			err,
+		)
 	}
 
-	return videoBytes, nil
-}
-
-type TutorialService struct {
-	repository *tutorialrepository.TutorialRepository
-	bucketName string
-	prefix     string
-}
-
-func NewTutorialService(
-	repository *tutorialrepository.TutorialRepository,
-) *TutorialService {
-	return &TutorialService{
-		repository: repository,
-		bucketName: os.Getenv("GCS_VIDEO_BUCKET"),
-		prefix:     os.Getenv("GCS_VIDEO_PREFIX"),
-	}
+	return videoBytes, err
 }
 
 func (s *TutorialService) UploadVideo(
@@ -170,4 +220,32 @@ func (s *TutorialService) UploadVideo(
 
 	// Return only filename
 	return fileName, nil
+}
+
+func (s *TutorialService) GetDetailsByRole(
+	ctx context.Context,
+	userRole string,
+) ([]dto.TutorialResponseDTO, error) {
+
+	if strings.TrimSpace(userRole) == "" {
+		return nil, ErrRoleNotFound
+	}
+
+	roles := strings.Split(userRole, ",")
+
+	var cleanedRoles []string
+
+	for _, role := range roles {
+		role = strings.TrimSpace(role)
+
+		if role != "" {
+			cleanedRoles = append(cleanedRoles, role)
+		}
+	}
+
+	if len(cleanedRoles) == 0 {
+		return nil, ErrRoleNotFound
+	}
+
+	return s.repository.GetTutorialsByRoles(ctx, cleanedRoles)
 }

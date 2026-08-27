@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
+	"path/filepath"
+	"strings"
 
 	"cloud.google.com/go/storage"
 )
@@ -13,6 +16,9 @@ type Service struct {
 }
 
 func NewService(ctx context.Context) (*Service, error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("GCS context is required")
+	}
 
 	client, err := storage.NewClient(ctx)
 	if err != nil {
@@ -24,21 +30,43 @@ func NewService(ctx context.Context) (*Service, error) {
 	}, nil
 }
 
+func (s *Service) Close() error {
+	if s == nil || s.client == nil {
+		return nil
+	}
+
+	return s.client.Close()
+}
+
 func (s *Service) UploadVideo(
 	ctx context.Context,
 	bucketName string,
 	fileName string,
 	file io.Reader,
 ) error {
+	if s == nil || s.client == nil {
+		return fmt.Errorf("GCS service is not initialized")
+	}
+	if strings.TrimSpace(bucketName) == "" {
+		return fmt.Errorf("GCS bucket name is required")
+	}
+	if strings.TrimSpace(fileName) == "" {
+		return fmt.Errorf("GCS object name is required")
+	}
+	if file == nil {
+		return fmt.Errorf("video file is required")
+	}
 
 	writer := s.client.
 		Bucket(bucketName).
 		Object(fileName).
 		NewWriter(ctx)
+	writer.ContentType = contentType(fileName)
+	writer.CacheControl = "public, max-age=3600"
 
 	_, err := io.Copy(writer, file)
 	if err != nil {
-		writer.Close()
+		_ = writer.Close()
 		return fmt.Errorf("failed to upload video: %w", err)
 	}
 
@@ -54,6 +82,15 @@ func (s *Service) GetVideo(
 	bucketName string,
 	objectName string,
 ) ([]byte, error) {
+	if s == nil || s.client == nil {
+		return nil, fmt.Errorf("GCS service is not initialized")
+	}
+	if strings.TrimSpace(bucketName) == "" {
+		return nil, fmt.Errorf("GCS bucket name is required")
+	}
+	if strings.TrimSpace(objectName) == "" {
+		return nil, fmt.Errorf("GCS object name is required")
+	}
 
 	reader, err := s.client.
 		Bucket(bucketName).
@@ -79,4 +116,12 @@ func (s *Service) GetVideo(
 	}
 
 	return videoBytes, nil
+}
+
+func contentType(fileName string) string {
+	if detected := mime.TypeByExtension(strings.ToLower(filepath.Ext(fileName))); detected != "" {
+		return detected
+	}
+
+	return "application/octet-stream"
 }

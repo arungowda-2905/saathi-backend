@@ -13,6 +13,7 @@ import (
 	tutorialservice "saathi-backend/tutorial-service"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/joho/godotenv"
 )
 
@@ -41,6 +42,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize GCS service: %v", err)
 	}
+	defer func() {
+		if err := gcsService.Close(); err != nil {
+			log.Printf("Failed to close GCS service: %v", err)
+		}
+	}()
 
 	// Create repository
 	repository := tutorialrepository.NewTutorialRepository(gcsService)
@@ -54,6 +60,12 @@ func main() {
 	app := fiber.New(fiber.Config{
 		BodyLimit: 500 * 1024 * 1024,
 	})
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "http://localhost:5173,http://127.0.0.1:5173",
+		AllowHeaders: "Origin, Content-Type, Accept, X-Role, Authorization",
+		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
+	}))
 
 	routes.SetupRoutes(app, tutorialHandler)
 

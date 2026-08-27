@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func SeedTutorials() error {
@@ -16,6 +17,14 @@ func SeedTutorials() error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	count, err := collection.CountDocuments(ctx, bson.D{})
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
 
 	tutorials := []interface{}{
 

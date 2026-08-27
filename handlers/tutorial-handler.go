@@ -3,16 +3,17 @@ package handlers
 import (
 	"context"
 	"errors"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"saathi-backend/config"
 	"saathi-backend/model"
 	tutorialservice "saathi-backend/tutorial-service"
 )
@@ -26,43 +27,57 @@ func NewTutorialHandler(service *tutorialservice.TutorialService) *TutorialHandl
 		service: service,
 	}
 }
-func HandleVideoUpload(c *fiber.Ctx) error {
+func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 
-	// Filename returned by colleague's upload API
-	videoFileName := c.FormValue("videoFileName")
-
-	if videoFileName == "" {
+	file, err := c.FormFile("video")
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Video file is required",
 		})
 	}
 
-	// Metadata sent from frontend
+	if err := validateVideoFile(file); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to open uploaded video",
+		})
+	}
+	defer src.Close()
+
+	if err := validateVideoContent(src); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
 	title := c.FormValue("title")
 	description := c.FormValue("description")
 	applicationName := c.FormValue("applicationName")
 	assignToRole := c.FormValue("assignToRole")
+	roles := parseRoles(assignToRole)
 
-	// Validate metadata
 	if title == "" ||
 		description == "" ||
 		applicationName == "" ||
-		assignToRole == "" {
+		len(roles) == 0 {
 
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "All metadata fields are required",
 		})
 	}
 
-	// Create tutorial object
 	tutorial := model.Tutorial{
 		AppName:          applicationName,
 		VideoTitle:       title,
 		VideoDescription: description,
 
-		Roles: []string{
-			assignToRole,
-		},
+		Roles: roles,
 
 		Version:    "1.0",
 		TitleImage: "",
@@ -75,9 +90,18 @@ func HandleVideoUpload(c *fiber.Ctx) error {
 	)
 	defer cancel()
 
-	// Generate UUID and save video details
-	// UUID is mapped with the GCS filename in MongoDB
-	_, err := tutorialservice.CreateNewTutorial(
+	videoFileName, err := h.service.UploadVideo(
+		c.Context(),
+		file.Filename,
+		src,
+	)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to upload video",
+		})
+	}
+
+	createdTutorial, err := h.service.CreateNewTutorial(
 		ctx,
 		tutorial,
 		videoFileName,
@@ -90,11 +114,12 @@ func HandleVideoUpload(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": "Video uploaded successfully",
+		"message":  "Video uploaded successfully",
+		"video_id": createdTutorial.Video_ID,
 	})
 }
 
-func GetTutorialByID(c *fiber.Ctx) error {
+func (h *TutorialHandler) GetTutorialByID(c *fiber.Ctx) error {
 
 	vid := c.Params("videoId")
 
@@ -104,13 +129,13 @@ func GetTutorialByID(c *fiber.Ctx) error {
 		})
 	}
 
-	userRole := c.Get("X-Role")
+	// userRole := c.Get("X-Role")
 
-	if userRole == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "User role is required",
-		})
-	}
+	// if userRole == "" {
+	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+	// 		"error": "User role is required",
+	// 	})
+	// }
 
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
@@ -118,17 +143,23 @@ func GetTutorialByID(c *fiber.Ctx) error {
 	)
 	defer cancel()
 
-	videoBytes, err := tutorialservice.GetTutorialByID(
+	videoBytes, err := h.service.GetTutorialByID(
 		vid,
 		ctx,
-		userRole,
 	)
+	// userRole,
 
 	if err != nil {
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "Tutorial not found",
+			})
+		}
+
+		if errors.Is(err, tutorialservice.ErrInvalidVideoID) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid video ID",
 			})
 		}
 
@@ -143,7 +174,7 @@ func GetTutorialByID(c *fiber.Ctx) error {
 	return c.Send(videoBytes)
 }
 
-func GetDetailsByRole(c *fiber.Ctx) error {
+func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
 
 	userRole := c.Get("X-Role")
 
@@ -153,51 +184,33 @@ func GetDetailsByRole(c *fiber.Ctx) error {
 		})
 	}
 
-	roles := strings.Split(userRole, ",")
-
-	for i := range roles {
-		roles[i] = strings.TrimSpace(roles[i])
-	}
-
-	filter := bson.M{
-		"roles": bson.M{
-			"$in": roles,
-		},
-		"is_active": true,
-	}
-
-	projection := bson.M{
-		"video_id":          1,
-		"app_name":          1,
-		"video_title":       1,
-		"video_description": 1,
-	}
-
-	opts := options.Find().SetProjection(projection)
-
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		10*time.Second,
 	)
 	defer cancel()
 
-	cursor, err := config.DB.
-		Collection("tutorials").
-		Find(ctx, filter, opts)
+	tutorials, err := h.service.GetDetailsByRole(
+		ctx,
+		userRole,
+	)
 
 	if err != nil {
+
+		if errors.Is(err, tutorialservice.ErrRoleNotFound) {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "User role not found",
+			})
+		}
+
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch tutorials",
 		})
 	}
 
-	defer cursor.Close(ctx)
-
-	var tutorials []model.TutorialDetail
-
-	if err := cursor.All(ctx, &tutorials); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to decode tutorials",
+	if len(tutorials) == 0 {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "No tutorials found for this role",
 		})
 	}
 
@@ -212,6 +225,12 @@ func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
 		})
 	}
 
+	if err := validateVideoFile(file); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
 	src, err := file.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -219,6 +238,12 @@ func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
 		})
 	}
 	defer src.Close()
+
+	if err := validateVideoContent(src); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
 
 	fileName, err := h.service.UploadVideo(
 		c.Context(),
@@ -235,4 +260,58 @@ func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
 		"message":  "Video uploaded successfully",
 		"fileName": fileName,
 	})
+}
+
+func validateVideoFile(file *multipart.FileHeader) error {
+	if file.Size == 0 {
+		return errors.New("Video file cannot be empty")
+	}
+
+	switch strings.ToLower(filepath.Ext(file.Filename)) {
+	case ".mp4", ".mov", ".webm", ".avi", ".mkv":
+		return nil
+	default:
+		return errors.New("Unsupported video format")
+	}
+}
+
+func validateVideoContent(file multipart.File) error {
+	const sniffSize = 512
+
+	header := make([]byte, sniffSize)
+	read, err := file.Read(header)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return errors.New("Unable to read video file")
+	}
+
+	contentType := http.DetectContentType(header[:read])
+	if !strings.HasPrefix(contentType, "video/") {
+		return errors.New("Uploaded file is not a valid video")
+	}
+
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return errors.New("Unable to process video file")
+	}
+
+	return nil
+}
+
+func parseRoles(value string) []string {
+	seen := make(map[string]struct{})
+	roles := make([]string, 0)
+
+	for _, role := range strings.Split(value, ",") {
+		role = strings.TrimSpace(role)
+		if role == "" {
+			continue
+		}
+		if _, exists := seen[role]; exists {
+			continue
+		}
+
+		seen[role] = struct{}{}
+		roles = append(roles, role)
+	}
+
+	return roles
 }

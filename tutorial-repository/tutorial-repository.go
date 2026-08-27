@@ -6,12 +6,14 @@ import (
 	"io"
 
 	"saathi-backend/config"
+	"saathi-backend/dto"
 	"saathi-backend/gcs"
 	"saathi-backend/model"
 
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var tutorialCollection *mongo.Collection
@@ -20,20 +22,33 @@ func InitRepository() {
 	tutorialCollection = config.DB.Collection("tutorials")
 }
 
-func InsertTutorial(
+type TutorialRepository struct {
+	gcsService *gcs.Service
+}
+
+func NewTutorialRepository(gcsService *gcs.Service) *TutorialRepository {
+	return &TutorialRepository{
+		gcsService: gcsService,
+	}
+}
+
+func (r *TutorialRepository) InsertTutorial(
 	ctx context.Context,
 	tutorial model.Tutorial,
 ) error {
 
-	_, err := tutorialCollection.InsertOne(ctx, tutorial)
+	_, err := tutorialCollection.InsertOne(
+		ctx,
+		tutorial,
+	)
 
 	return err
 }
 
-func GetTutorialByID(
+func (r *TutorialRepository) GetTutorialByID(
 	ctx context.Context,
 	videoID uuid.UUID,
-	userRole string,
+	// userRole string,
 ) (model.Tutorial, error) {
 
 	var tutorial model.Tutorial
@@ -41,9 +56,9 @@ func GetTutorialByID(
 	filter := bson.M{
 		"video_id":  videoID,
 		"is_active": true,
-		"roles": bson.M{
-			"$in": []string{userRole},
-		},
+		// "roles": bson.M{
+		// 	"$in": []string{userRole},
+		// },
 	}
 
 	err := tutorialCollection.
@@ -55,16 +70,6 @@ func GetTutorialByID(
 	}
 
 	return tutorial, nil
-}
-
-type TutorialRepository struct {
-	gcsService *gcs.Service
-}
-
-func NewTutorialRepository(gcsService *gcs.Service) *TutorialRepository {
-	return &TutorialRepository{
-		gcsService: gcsService,
-	}
 }
 
 func (r *TutorialRepository) UploadVideo(
@@ -85,4 +90,41 @@ func (r *TutorialRepository) UploadVideo(
 	}
 
 	return nil
+}
+
+func (r *TutorialRepository) GetTutorialsByRoles(
+	ctx context.Context,
+	roles []string,
+) ([]dto.TutorialResponseDTO, error) {
+
+	filter := bson.M{
+		"roles": bson.M{
+			"$in": roles,
+		},
+		"is_active": true,
+	}
+
+	projection := bson.M{
+		"video_id":          1,
+		"app_name":          1,
+		"video_title":       1,
+		"video_description": 1,
+	}
+
+	opts := options.Find().SetProjection(projection)
+
+	cursor, err := tutorialCollection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(ctx)
+
+	tutorials := make([]dto.TutorialResponseDTO, 0)
+
+	if err := cursor.All(ctx, &tutorials); err != nil {
+		return nil, err
+	}
+
+	return tutorials, nil
 }
