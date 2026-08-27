@@ -29,30 +29,10 @@ func NewTutorialHandler(service *tutorialservice.TutorialService) *TutorialHandl
 }
 func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 
-	file, err := c.FormFile("video")
-	if err != nil {
+	videoFileName := c.FormValue("video")
+	if videoFileName == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Video file is required",
-		})
-	}
-
-	if err := validateVideoFile(file); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	src, err := file.Open()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to open uploaded video",
-		})
-	}
-	defer src.Close()
-
-	if err := validateVideoContent(src); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
 		})
 	}
 
@@ -90,16 +70,16 @@ func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 	)
 	defer cancel()
 
-	videoFileName, err := h.service.UploadVideo(
-		c.Context(),
-		file.Filename,
-		src,
-	)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to upload video",
-		})
-	}
+	// videoFileName, err := h.service.UploadVideo(
+	// 	c.Context(),
+	// 	file.Filename,
+	// 	src,
+	// )
+	// if err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	// 		"error": "Failed to upload video",
+	// 	})
+	// }
 
 	createdTutorial, err := h.service.CreateNewTutorial(
 		ctx,
