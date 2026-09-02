@@ -20,6 +20,7 @@ var tutorialCollection *mongo.Collection
 
 func InitRepository() {
 	tutorialCollection = config.DB.Collection("tutorials")
+	videoProgressCollection = config.DB.Collection("video_progress")
 }
 
 type TutorialRepository struct {
@@ -109,6 +110,7 @@ func (r *TutorialRepository) GetTutorialsByRoles(
 		"app_name":          1,
 		"video_title":       1,
 		"video_description": 1,
+		"created_at":        1,
 	}
 
 	opts := options.Find().SetProjection(projection)
