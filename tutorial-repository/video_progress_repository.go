@@ -5,7 +5,7 @@ import (
 
 	"saathi-backend/config"
 	"saathi-backend/model"
-
+"time"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -57,4 +57,21 @@ func CreateVideoProgressIndex() error {
 	)
 
 	return err
+}
+func UpdateVideoFeedback(userID, videoID, rating string) error {
+    _, err := videoProgressCollection.UpdateOne(
+        context.Background(),
+        bson.M{
+            "user_id":  userID,
+            "video_id": videoID,
+        },
+        bson.M{
+            "$set": bson.M{
+                "rating":     rating,
+                "updated_at": time.Now(),
+            },
+        },
+    )
+
+    return err
 }

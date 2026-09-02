@@ -96,3 +96,69 @@ func CreateVideoProgress(c *fiber.Ctx) error {
 		"updated_at":       progress.UpdatedAt,
 	})
 }
+
+func UpdateVideoFeedback(c *fiber.Ctx) error {
+    videoID := c.Params("video_id")
+
+    if videoID == "" {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "error": "video_id is required",
+        })
+    }
+
+    var req dto.VideoFeedbackRequest
+
+    if err := c.BodyParser(&req); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "error": "invalid request body",
+        })
+    }
+
+    if req.Rating != "helpful" && req.Rating != "not_helpful" {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "error": "rating must be helpful or not_helpful",
+        })
+    }
+
+    // Check whether progress already exists
+    progress, err := tutorialrepository.GetVideoProgress(
+        hardcodedEmployeeID,
+        videoID,
+    )
+
+    if err != nil {
+        if errors.Is(err, mongo.ErrNoDocuments) {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+                "error": "video progress not found",
+            })
+        }
+
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "failed to check video progress",
+        })
+    }
+
+    if progress == nil {
+        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+            "error": "video progress not found",
+        })
+    }
+
+    // Update only rating
+    err = tutorialrepository.UpdateVideoFeedback(
+        hardcodedEmployeeID,
+        videoID,
+        req.Rating,
+    )
+
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "failed to update feedback",
+        })
+    }
+
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "video_id": videoID,
+        "rating":   req.Rating,
+    })
+}
