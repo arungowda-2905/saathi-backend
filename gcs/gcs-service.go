@@ -7,7 +7,7 @@ import (
 	"mime"
 	"path/filepath"
 	"strings"
-
+"google.golang.org/api/iterator"
 	"cloud.google.com/go/storage"
 )
 
@@ -118,6 +118,76 @@ func (s *Service) GetVideo(
 	return videoBytes, nil
 }
 
+func (s *Service) GetUploadFiles(
+	ctx context.Context,
+	bucketName string,
+	prefix string,
+) (string, string, error) {
+
+	if s == nil || s.client == nil {
+		return "", "", fmt.Errorf("GCS service is not initialized")
+	}
+
+	if strings.TrimSpace(bucketName) == "" {
+		return "", "", fmt.Errorf("GCS bucket name is required")
+	}
+
+	if strings.TrimSpace(prefix) == "" {
+		return "", "", fmt.Errorf("GCS upload prefix is required")
+	}
+
+	query := &storage.Query{
+		Prefix: strings.TrimSuffix(prefix, "/") + "/",
+	}
+
+	it := s.client.
+		Bucket(bucketName).
+		Objects(ctx, query)
+
+	var videoPath string
+	var thumbnailPath string
+
+	for {
+		object, err := it.Next()
+
+		if err == iterator.Done {
+			break
+		}
+
+		if err != nil {
+			return "", "", fmt.Errorf(
+				"failed to list GCS upload files: %w",
+				err,
+			)
+		}
+
+		objectName := object.Name
+
+		switch {
+		case strings.Contains(
+			strings.ToLower(objectName),
+			"/video.",
+		):
+			videoPath = objectName
+
+		case strings.Contains(
+			strings.ToLower(objectName),
+			"/thumbnail.",
+		):
+			thumbnailPath = objectName
+		}
+	}
+
+	if videoPath == "" {
+		return "", "", fmt.Errorf("video not found for upload ID")
+	}
+
+	if thumbnailPath == "" {
+		return "", "", fmt.Errorf("thumbnail not found for upload ID")
+	}
+
+	return videoPath, thumbnailPath, nil
+}
 func contentType(fileName string) string {
 	if detected := mime.TypeByExtension(strings.ToLower(filepath.Ext(fileName))); detected != "" {
 		return detected
