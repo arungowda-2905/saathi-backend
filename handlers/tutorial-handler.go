@@ -29,10 +29,12 @@ func NewTutorialHandler(service *tutorialservice.TutorialService) *TutorialHandl
 }
 func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 
-	videoFileName := c.FormValue("video")
-	if videoFileName == "" {
+	// upload_id is returned by POST /v1/upload
+	uploadID := c.FormValue("upload_id")
+
+	if uploadID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Video file is required",
+			"error": "Upload ID is required",
 		})
 	}
 
@@ -40,6 +42,7 @@ func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 	description := c.FormValue("description")
 	applicationName := c.FormValue("applicationName")
 	assignToRole := c.FormValue("assignToRole")
+
 	roles := parseRoles(assignToRole)
 
 	if title == "" ||
@@ -56,12 +59,9 @@ func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 		AppName:          applicationName,
 		VideoTitle:       title,
 		VideoDescription: description,
-
-		Roles: roles,
-
-		Version:    "1.0",
-		TitleImage: "",
-		IsActive:   true,
+		Roles:            roles,
+		Version:          "1.0",
+		IsActive:         true,
 	}
 
 	ctx, cancel := context.WithTimeout(
@@ -70,26 +70,15 @@ func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 	)
 	defer cancel()
 
-	// videoFileName, err := h.service.UploadVideo(
-	// 	c.Context(),
-	// 	file.Filename,
-	// 	src,
-	// )
-	// if err != nil {
-	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-	// 		"error": "Failed to upload video",
-	// 	})
-	// }
-
 	createdTutorial, err := h.service.CreateNewTutorial(
 		ctx,
 		tutorial,
-		videoFileName,
+		uploadID,
 	)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create tutorial",
+			"error": err.Error(),
 		})
 	}
 
@@ -198,48 +187,125 @@ func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
 }
 
 func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
-	file, err := c.FormFile("video")
+
+	// Get video file
+	videoFile, err := c.FormFile("video")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Video file is required",
 		})
 	}
 
-	if err := validateVideoFile(file); err != nil {
+	// Get thumbnail file
+	thumbnailFile, err := c.FormFile("thumbnail")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Thumbnail image is required",
+		})
+	}
+
+	// Validate video
+	if err := validateVideoFile(videoFile); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
 
-	src, err := file.Open()
+	// Validate thumbnail
+	if err := validateThumbnailFile(thumbnailFile); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	// Open video
+	videoSrc, err := videoFile.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to open uploaded video",
 		})
 	}
-	defer src.Close()
+	defer videoSrc.Close()
 
-	if err := validateVideoContent(src); err != nil {
+	// Validate actual video content
+	if err := validateVideoContent(videoSrc); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
 
-	fileName, err := h.service.UploadVideo(
-		c.Context(),
-		file.Filename,
-		src,
-	)
+	// Open thumbnail
+	thumbnailSrc, err := thumbnailFile.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to upload video",
+			"error": "Failed to open uploaded thumbnail",
+		})
+	}
+	defer thumbnailSrc.Close()
+
+	// Validate actual thumbnail content
+	if err := validateThumbnailContent(thumbnailSrc); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
 		})
 	}
 
+	// Upload video + thumbnail using ONE UUID
+	uploadID, err := h.service.UploadVideoAndThumbnail(
+		c.Context(),
+		videoFile.Filename,
+		videoSrc,
+		thumbnailFile.Filename,
+		thumbnailSrc,
+	)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to upload video and thumbnail",
+		})
+	}
+
+	// Return ONLY the UUID.
+	// Do not return actual GCS file names.
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message":  "Video uploaded successfully",
-		"fileName": fileName,
+		"message":   "Video and thumbnail uploaded successfully",
+		"upload_id": uploadID,
 	})
+}
+
+func validateThumbnailFile(file *multipart.FileHeader) error {
+	if file.Size == 0 {
+		return errors.New("Thumbnail image cannot be empty")
+	}
+
+	switch strings.ToLower(filepath.Ext(file.Filename)) {
+	case ".jpg", ".jpeg", ".png", ".webp":
+		return nil
+	default:
+		return errors.New("Unsupported thumbnail format")
+	}
+}
+
+func validateThumbnailContent(file multipart.File) error {
+	const sniffSize = 512
+
+	header := make([]byte, sniffSize)
+
+	read, err := file.Read(header)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return errors.New("Unable to read thumbnail image")
+	}
+
+	contentType := http.DetectContentType(header[:read])
+	if !strings.HasPrefix(contentType, "image/") {
+		return errors.New("Uploaded file is not a valid image")
+	}
+
+	// Reset reader position so it can be uploaded to GCS.
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return errors.New("Unable to process thumbnail image")
+	}
+
+	return nil
 }
 
 func validateVideoFile(file *multipart.FileHeader) error {

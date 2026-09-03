@@ -130,3 +130,26 @@ func (r *TutorialRepository) GetTutorialsByRoles(
 
 	return tutorials, nil
 }
+
+
+func (r *TutorialRepository) GetUploadFiles(
+	ctx context.Context,
+	bucketName string,
+	prefix string,
+) (string, string, error) {
+
+	videoPath, thumbnailPath, err := r.gcsService.GetUploadFiles(
+		ctx,
+		bucketName,
+		prefix,
+	)
+
+	if err != nil {
+		return "", "", fmt.Errorf(
+			"failed to find upload files: %w",
+			err,
+		)
+	}
+
+	return videoPath, thumbnailPath, nil
+}
