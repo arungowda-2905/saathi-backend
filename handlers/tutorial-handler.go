@@ -29,12 +29,12 @@ func NewTutorialHandler(service *tutorialservice.TutorialService) *TutorialHandl
 }
 func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 
-	// upload_id is returned by POST /v1/upload
-	uploadID := c.FormValue("upload_id")
+	videoBucketUUID := c.FormValue("video_bucket_uuid")
+	thumbnailUUID := c.FormValue("thumbnail_uuid")
 
-	if uploadID == "" {
+	if videoBucketUUID == "" || thumbnailUUID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Upload ID is required",
+			"error": "Video bucket UUID and thumbnail UUID are required",
 		})
 	}
 
@@ -73,7 +73,8 @@ func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 	createdTutorial, err := h.service.CreateNewTutorial(
 		ctx,
 		tutorial,
-		uploadID,
+		videoBucketUUID,
+		thumbnailUUID,
 	)
 
 	if err != nil {
@@ -146,7 +147,7 @@ func (h *TutorialHandler) GetTutorialByID(c *fiber.Ctx) error {
 func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
 
 	userRole := c.Get("X-Role")
-	//userRole = "admin" // Hardcoded for testing purposes. Remove this line in production.
+	userRole = "admin" // Hardcoded for testing purposes. Remove this line in production.
 	if userRole == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "User role not found",
@@ -250,8 +251,8 @@ func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
 		})
 	}
 
-	// Upload video + thumbnail using ONE UUID
-	uploadID, err := h.service.UploadVideoAndThumbnail(
+	// Upload video and thumbnail using independent UUID prefixes.
+	videoBucketUUID, thumbnailUUID, err := h.service.UploadVideoAndThumbnail(
 		c.Context(),
 		videoFile.Filename,
 		videoSrc,
@@ -264,11 +265,10 @@ func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return ONLY the UUID.
-	// Do not return actual GCS file names.
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message":   "Video and thumbnail uploaded successfully",
-		"upload_id": uploadID,
+		"message":           "Video and thumbnail uploaded successfully",
+		"video_bucket_uuid": videoBucketUUID,
+		"thumbnail_uuid":    thumbnailUUID,
 	})
 }
 

@@ -181,25 +181,16 @@ func (r *TutorialRepository) GetTutorialsByAppName(
 	return tutorials, nil
 }
 
-
-func (r *TutorialRepository) GetUploadFiles(
+func (r *TutorialRepository) GetUploadFile(
 	ctx context.Context,
 	bucketName string,
 	prefix string,
-) (string, string, error) {
-
-	videoPath, thumbnailPath, err := r.gcsService.GetUploadFiles(
-		ctx,
-		bucketName,
-		prefix,
-	)
-
+	fileType string,
+) (string, error) {
+	filePath, err := r.gcsService.GetUploadFile(ctx, bucketName, prefix, fileType)
 	if err != nil {
-		return "", "", fmt.Errorf(
-			"failed to find upload files: %w",
-			err,
-		)
+		return "", fmt.Errorf("failed to find upload file: %w", err)
 	}
 
-	return videoPath, thumbnailPath, nil
+	return filePath, nil
 }

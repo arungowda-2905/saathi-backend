@@ -7,8 +7,9 @@ import (
 	"mime"
 	"path/filepath"
 	"strings"
-"google.golang.org/api/iterator"
+
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 )
 
 type Service struct {
@@ -118,76 +119,41 @@ func (s *Service) GetVideo(
 	return videoBytes, nil
 }
 
-func (s *Service) GetUploadFiles(
+func (s *Service) GetUploadFile(
 	ctx context.Context,
 	bucketName string,
 	prefix string,
-) (string, string, error) {
-
+	fileType string,
+) (string, error) {
 	if s == nil || s.client == nil {
-		return "", "", fmt.Errorf("GCS service is not initialized")
+		return "", fmt.Errorf("GCS service is not initialized")
 	}
-
 	if strings.TrimSpace(bucketName) == "" {
-		return "", "", fmt.Errorf("GCS bucket name is required")
+		return "", fmt.Errorf("GCS bucket name is required")
+	}
+	if strings.TrimSpace(prefix) == "" || strings.TrimSpace(fileType) == "" {
+		return "", fmt.Errorf("GCS upload prefix and file type are required")
 	}
 
-	if strings.TrimSpace(prefix) == "" {
-		return "", "", fmt.Errorf("GCS upload prefix is required")
-	}
-
-	query := &storage.Query{
-		Prefix: strings.TrimSuffix(prefix, "/") + "/",
-	}
-
-	it := s.client.
-		Bucket(bucketName).
-		Objects(ctx, query)
-
-	var videoPath string
-	var thumbnailPath string
+	query := &storage.Query{Prefix: strings.TrimSuffix(prefix, "/")}
+	it := s.client.Bucket(bucketName).Objects(ctx, query)
 
 	for {
 		object, err := it.Next()
-
 		if err == iterator.Done {
 			break
 		}
-
 		if err != nil {
-			return "", "", fmt.Errorf(
-				"failed to list GCS upload files: %w",
-				err,
-			)
+			return "", fmt.Errorf("failed to list GCS upload files: %w", err)
 		}
-
-		objectName := object.Name
-
-		switch {
-		case strings.Contains(
-			strings.ToLower(objectName),
-			"/video.",
-		):
-			videoPath = objectName
-
-		case strings.Contains(
-			strings.ToLower(objectName),
-			"/thumbnail.",
-		):
-			thumbnailPath = objectName
+		if strings.HasPrefix(object.Name, strings.TrimSuffix(prefix, "/")) {
+			return object.Name, nil
 		}
 	}
 
-	if videoPath == "" {
-		return "", "", fmt.Errorf("video not found for upload ID")
-	}
-
-	if thumbnailPath == "" {
-		return "", "", fmt.Errorf("thumbnail not found for upload ID")
-	}
-
-	return videoPath, thumbnailPath, nil
+	return "", fmt.Errorf("%s not found for upload UUID", fileType)
 }
+
 func contentType(fileName string) string {
 	if detected := mime.TypeByExtension(strings.ToLower(filepath.Ext(fileName))); detected != "" {
 		return detected

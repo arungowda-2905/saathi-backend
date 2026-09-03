@@ -41,12 +41,13 @@ func NewTutorialService(
 func (s *TutorialService) CreateNewTutorial(
 	ctx context.Context,
 	tutorial model.Tutorial,
-	uploadID string,
+	videoBucketUUID string,
+	thumbnailUUID string,
 ) (model.Tutorial, error) {
 
-	if uploadID == "" {
+	if videoBucketUUID == "" || thumbnailUUID == "" {
 		return model.Tutorial{}, fmt.Errorf(
-			"upload ID is required",
+			"video bucket UUID and thumbnail UUID are required",
 		)
 	}
 
@@ -74,17 +75,35 @@ func (s *TutorialService) CreateNewTutorial(
 		)
 	}
 
-	// Find video + thumbnail using upload_id.
-	uploadPrefix := path.Join(
+	videoPrefix := path.Join(
 		strings.TrimSuffix(s.prefix, "/"),
-		"uploads",
-		uploadID,
+		"video",
+		videoBucketUUID,
+	)
+	thumbnailPrefix := path.Join(
+		strings.TrimSuffix(s.prefix, "/"),
+		"thumbnail",
+		thumbnailUUID,
 	)
 
-	videoPath, thumbnailPath, err := s.repository.GetUploadFiles(
+	videoPath, err := s.repository.GetUploadFile(
 		ctx,
 		s.bucketName,
-		uploadPrefix,
+		videoPrefix,
+		"video",
+	)
+	if err != nil {
+		return model.Tutorial{}, fmt.Errorf(
+			"failed to find uploaded video: %w",
+			err,
+		)
+	}
+
+	thumbnailPath, err := s.repository.GetUploadFile(
+		ctx,
+		s.bucketName,
+		thumbnailPrefix,
+		"thumbnail",
 	)
 
 	if err != nil {
@@ -99,9 +118,9 @@ func (s *TutorialService) CreateNewTutorial(
 
 	tutorial.Video_ID = videoID
 
-	// Store internal GCS paths.
-	tutorial.Video_Bucket = videoPath
-	tutorial.TitleImage = thumbnailPath
+	// Store only the UUID-based filenames in MongoDB.
+	tutorial.Video_Bucket = path.Base(videoPath)
+	tutorial.TitleImage = path.Base(thumbnailPath)
 
 	// Set timestamps.
 	now := time.Now()
@@ -161,10 +180,11 @@ func (s *TutorialService) GetTutorialByID(
 		)
 	}
 
-	// Video_Bucket already contains the complete GCS object path.
-	// Example:
-	// uploads/<upload_id>/video.mp4
-	videoPath := tutorial.Video_Bucket
+	videoPath := path.Join(
+		strings.TrimSuffix(s.prefix, "/"),
+		"video",
+		tutorial.Video_Bucket,
+	)
 
 	if videoPath == "" {
 		return nil, fmt.Errorf("video path is empty")
@@ -208,20 +228,22 @@ func (s *TutorialService) UploadVideoAndThumbnail(
 	videoFile io.Reader,
 	thumbnailFileName string,
 	thumbnailFile io.Reader,
-) (string, error) {
+) (string, string, error) {
 
 	if s.bucketName == "" {
-		return "", fmt.Errorf("GCS_VIDEO_BUCKET is not configured")
+		return "", "", fmt.Errorf("GCS_VIDEO_BUCKET is not configured")
 	}
 
-	// Generate ONE UUID for both files.
-	uploadID := uuid.New().String()
+	videoBucketUUID := uuid.New().String()
+	thumbnailUUID := uuid.New().String()
 
-	// Create one GCS folder/prefix using the UUID.
-	uploadPrefix := path.Join(
+	videoFolder := path.Join(
 		strings.TrimSuffix(s.prefix, "/"),
-		"uploads",
-		uploadID,
+		"video",
+	)
+	thumbnailFolder := path.Join(
+		strings.TrimSuffix(s.prefix, "/"),
+		"thumbnail",
 	)
 
 	// Keep the original extensions internally.
@@ -235,13 +257,13 @@ func (s *TutorialService) UploadVideoAndThumbnail(
 
 	// GCS object names
 	videoObjectName := path.Join(
-		uploadPrefix,
-		"video"+videoExtension,
+		videoFolder,
+		videoBucketUUID+videoExtension,
 	)
 
 	thumbnailObjectName := path.Join(
-		uploadPrefix,
-		"thumbnail"+thumbnailExtension,
+		thumbnailFolder,
+		thumbnailUUID+thumbnailExtension,
 	)
 
 	// Upload video
@@ -252,7 +274,7 @@ func (s *TutorialService) UploadVideoAndThumbnail(
 		videoFile,
 	)
 	if err != nil {
-		return "", fmt.Errorf(
+		return "", "", fmt.Errorf(
 			"failed to upload video: %w",
 			err,
 		)
@@ -266,15 +288,13 @@ func (s *TutorialService) UploadVideoAndThumbnail(
 		thumbnailFile,
 	)
 	if err != nil {
-		return "", fmt.Errorf(
+		return "", "", fmt.Errorf(
 			"failed to upload thumbnail: %w",
 			err,
 		)
 	}
 
-	// Return only the UUID.
-	// Actual GCS object names are never exposed.
-	return uploadID, nil
+	return videoBucketUUID, thumbnailUUID, nil
 }
 func (s *TutorialService) GetDetailsByRole(
 	ctx context.Context,
