@@ -73,14 +73,14 @@ func (r *TutorialRepository) GetTutorialByID(
 	return tutorial, nil
 }
 
-func (r *TutorialRepository) UploadVideo(
+func (r *TutorialRepository) UploadVideoThumbnail(
 	ctx context.Context,
 	bucketName string,
 	fileName string,
 	file io.Reader,
 ) error {
 
-	err := r.gcsService.UploadVideo(
+	err := r.gcsService.UploadVideoThumbnail(
 		ctx,
 		bucketName,
 		fileName,

@@ -234,8 +234,10 @@ func (s *TutorialService) UploadVideoAndThumbnail(
 		return "", "", fmt.Errorf("GCS_VIDEO_BUCKET is not configured")
 	}
 
-	videoBucketUUID := uuid.New().String()
-	thumbnailUUID := uuid.New().String()
+	// videoBucketUUID := uuid.New().String()
+	// thumbnailUUID := uuid.New().String()
+	videoBucketUnique := fmt.Sprintf("%d%s", time.Now().UnixNano(), strings.ToLower(filepath.Ext(videoFileName)))
+	thumbnailUnique := fmt.Sprintf("%d%s", time.Now().UnixNano(), strings.ToLower(filepath.Ext(thumbnailFileName)))
 
 	videoFolder := path.Join(
 		strings.TrimSuffix(s.prefix, "/"),
@@ -246,28 +248,19 @@ func (s *TutorialService) UploadVideoAndThumbnail(
 		"thumbnail",
 	)
 
-	// Keep the original extensions internally.
-	videoExtension := strings.ToLower(
-		filepath.Ext(videoFileName),
-	)
-
-	thumbnailExtension := strings.ToLower(
-		filepath.Ext(thumbnailFileName),
-	)
-
 	// GCS object names
 	videoObjectName := path.Join(
 		videoFolder,
-		videoBucketUUID+videoExtension,
+		videoBucketUnique,
 	)
 
 	thumbnailObjectName := path.Join(
 		thumbnailFolder,
-		thumbnailUUID+thumbnailExtension,
+		thumbnailUnique,
 	)
 
 	// Upload video
-	err := s.repository.UploadVideo(
+	err := s.repository.UploadVideoThumbnail(
 		ctx,
 		s.bucketName,
 		videoObjectName,
@@ -281,7 +274,7 @@ func (s *TutorialService) UploadVideoAndThumbnail(
 	}
 
 	// Upload thumbnail
-	err = s.repository.UploadVideo(
+	err = s.repository.UploadVideoThumbnail(
 		ctx,
 		s.bucketName,
 		thumbnailObjectName,
@@ -294,7 +287,7 @@ func (s *TutorialService) UploadVideoAndThumbnail(
 		)
 	}
 
-	return videoBucketUUID, thumbnailUUID, nil
+	return videoBucketUnique, thumbnailUnique, nil
 }
 func (s *TutorialService) GetDetailsByRole(
 	ctx context.Context,

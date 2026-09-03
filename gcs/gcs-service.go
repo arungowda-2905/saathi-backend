@@ -39,7 +39,7 @@ func (s *Service) Close() error {
 	return s.client.Close()
 }
 
-func (s *Service) UploadVideo(
+func (s *Service) UploadVideoThumbnail(
 	ctx context.Context,
 	bucketName string,
 	fileName string,
