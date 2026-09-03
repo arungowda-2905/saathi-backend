@@ -157,7 +157,7 @@ func (h *TutorialHandler) GetTutorialByID(c *fiber.Ctx) error {
 func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
 
 	userRole := c.Get("X-Role")
-
+	//userRole = "admin" // Hardcoded for testing purposes. Remove this line in production.
 	if userRole == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "User role not found",
@@ -170,7 +170,7 @@ func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
 	)
 	defer cancel()
 
-	tutorials, err := h.service.GetDetailsByRole(
+	appCounts, err := h.service.GetDetailsByRole(
 		ctx,
 		userRole,
 	)
@@ -188,13 +188,13 @@ func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
 		})
 	}
 
-	if len(tutorials) == 0 {
+	if len(appCounts) == 0 {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"message": "No tutorials found for this role",
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(tutorials)
+	return c.Status(fiber.StatusOK).JSON(appCounts)
 }
 
 func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
@@ -240,6 +240,42 @@ func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
 		"message":  "Video uploaded successfully",
 		"fileName": fileName,
 	})
+}
+
+func (h *TutorialHandler) GetDetailsByAppName(c *fiber.Ctx) error {
+
+	appName := c.Query("appName")
+
+	if strings.TrimSpace(appName) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "App name is required",
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
+	defer cancel()
+
+	tutorials, err := h.service.GetDetailsByAppName(
+		ctx,
+		appName,
+	)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch tutorials",
+		})
+	}
+
+	if len(tutorials) == 0 {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "No tutorials found for this app",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(tutorials)
 }
 
 func validateVideoFile(file *multipart.FileHeader) error {

@@ -21,4 +21,5 @@ type Tutorial struct {
 	IsActive         bool          `bson:"is_active" json:"is_active"`
 	CreatedAt        time.Time     `bson:"created_at" json:"created_at"`
 	UpdatedAt        time.Time     `bson:"updated_at" json:"updated_at"`
+	Duration         string        `bson:"duration" json:"duration"`
 }

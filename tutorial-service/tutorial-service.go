@@ -18,6 +18,7 @@ import (
 	uuid "github.com/google/uuid"
 )
 
+var ErrAppNameNotFound = errors.New("app name not found")
 var ErrRoleNotFound = errors.New("user role not found")
 var ErrInvalidVideoID = fmt.Errorf("invalid video ID")
 
@@ -225,7 +226,7 @@ func (s *TutorialService) UploadVideo(
 func (s *TutorialService) GetDetailsByRole(
 	ctx context.Context,
 	userRole string,
-) ([]dto.TutorialResponseDTO, error) {
+) ([]dto.AppCountResponseDTO, error) {
 
 	if strings.TrimSpace(userRole) == "" {
 		return nil, ErrRoleNotFound
@@ -248,4 +249,18 @@ func (s *TutorialService) GetDetailsByRole(
 	}
 
 	return s.repository.GetTutorialsByRoles(ctx, cleanedRoles)
+}
+
+func (s *TutorialService) GetDetailsByAppName(
+	ctx context.Context,
+	appName string,
+) ([]dto.TutorialResponseDTO, error) {
+
+	appName = strings.TrimSpace(appName)
+
+	if appName == "" {
+		return nil, ErrAppNameNotFound
+	}
+
+	return s.repository.GetTutorialsByAppName(ctx, appName)
 }

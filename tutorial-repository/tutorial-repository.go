@@ -96,21 +96,71 @@ func (r *TutorialRepository) UploadVideo(
 func (r *TutorialRepository) GetTutorialsByRoles(
 	ctx context.Context,
 	roles []string,
+) ([]dto.AppCountResponseDTO, error) {
+
+	pipeline := mongo.Pipeline{
+		// 1. Filter by role and active tutorials
+		{
+			{Key: "$match", Value: bson.D{
+				{Key: "roles", Value: bson.D{
+					{Key: "$in", Value: roles},
+				}},
+				{Key: "is_active", Value: true},
+			}},
+		},
+
+		// 2. Group by app_name and count
+		{
+			{Key: "$group", Value: bson.D{
+				{Key: "_id", Value: "$app_name"},
+				{Key: "count", Value: bson.D{
+					{Key: "$sum", Value: 1},
+				}},
+			}},
+		},
+
+		// 3. Convert _id to app_name
+		{
+			{Key: "$project", Value: bson.D{
+				{Key: "_id", Value: 0},
+				{Key: "app_name", Value: "$_id"},
+				{Key: "count", Value: 1},
+			}},
+		},
+	}
+
+	cursor, err := tutorialCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(ctx)
+
+	appCounts := make([]dto.AppCountResponseDTO, 0)
+
+	if err := cursor.All(ctx, &appCounts); err != nil {
+		return nil, err
+	}
+
+	return appCounts, nil
+}
+
+func (r *TutorialRepository) GetTutorialsByAppName(
+	ctx context.Context,
+	appName string,
 ) ([]dto.TutorialResponseDTO, error) {
 
 	filter := bson.M{
-		"roles": bson.M{
-			"$in": roles,
-		},
+		"app_name":  appName,
 		"is_active": true,
 	}
 
 	projection := bson.M{
 		"video_id":          1,
-		"app_name":          1,
 		"video_title":       1,
 		"video_description": 1,
-		"created_at":        1,
+		"title_image":       1,
+		"duration":          1,
 	}
 
 	opts := options.Find().SetProjection(projection)
