@@ -330,3 +330,76 @@ func (s *TutorialService) GetDetailsByAppName(
 
 	return s.repository.GetTutorialsByAppName(ctx, appName)
 }
+
+func (s *TutorialService) GetTutorialThumbnailByID(
+	videoID string,
+	ctx context.Context,
+) ([]byte, string, error) {
+
+	if videoID == "" {
+		return nil, "", fmt.Errorf("video ID is required")
+	}
+
+	videoUUID, err := uuid.Parse(videoID)
+	if err != nil {
+		return nil, "", fmt.Errorf(
+			"%w: %s",
+			ErrInvalidVideoID,
+			videoID,
+		)
+	}
+
+	tutorial, err := s.repository.GetTutorialByID(
+		ctx,
+		videoUUID,
+	)
+
+	if err != nil {
+		return nil, "", err
+	}
+
+	bucketName := os.Getenv("GCS_VIDEO_BUCKET")
+
+	if bucketName == "" {
+		return nil, "", fmt.Errorf(
+			"GCS_VIDEO_BUCKET is not configured",
+		)
+	}
+
+	imagePath := path.Join(
+		strings.TrimSuffix(s.prefix, "/"),
+		"thumbnail",
+		tutorial.TitleImage,
+	)
+
+	if imagePath == "" {
+		return nil, "", fmt.Errorf("thumbnail path is empty")
+	}
+
+	gcsService, err := gcs.NewService(ctx)
+	if err != nil {
+		return nil, "", fmt.Errorf(
+			"failed to initialize GCS service: %w",
+			err,
+		)
+	}
+
+	defer func() {
+		_ = gcsService.Close()
+	}()
+
+	imageBytes, contentType, err := gcsService.GetImage(
+		ctx,
+		bucketName,
+		imagePath,
+	)
+
+	if err != nil {
+		return nil, "", fmt.Errorf(
+			"failed to fetch thumbnail from GCS: %w",
+			err,
+		)
+	}
+
+	return imageBytes, contentType, nil
+}

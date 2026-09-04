@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -99,14 +100,6 @@ func (h *TutorialHandler) GetTutorialByID(c *fiber.Ctx) error {
 		})
 	}
 
-	// userRole := c.Get("X-Role")
-
-	// if userRole == "" {
-	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-	// 		"error": "User role is required",
-	// 	})
-	// }
-
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		30*time.Second,
@@ -147,7 +140,7 @@ func (h *TutorialHandler) GetTutorialByID(c *fiber.Ctx) error {
 func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
 
 	userRole := c.Get("X-Role")
-	userRole = "admin" // Hardcoded for testing purposes. Remove this line in production.
+	//userRole = "admin" // Hardcoded for testing purposes. Remove this line in production.
 	if userRole == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "User role not found",
@@ -396,4 +389,53 @@ func parseRoles(value string) []string {
 	}
 
 	return roles
+}
+
+func (h *TutorialHandler) GetTutorialThumbnailByID(c *fiber.Ctx) error {
+
+	vid := c.Params("videoId")
+
+	if vid == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Video ID is required",
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		30*time.Second,
+	)
+	defer cancel()
+
+	imageBytes, contentType, err := h.service.GetTutorialThumbnailByID(
+		vid,
+		ctx,
+	)
+
+	if err != nil {
+
+		fmt.Println("ERROR GetTutorialThumbnailByID:", err)
+
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Tutorial not found",
+			})
+		}
+
+		if errors.Is(err, tutorialservice.ErrInvalidVideoID) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid video ID",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch tutorial thumbnail",
+		})
+	}
+
+	c.Set("Content-Type", contentType)
+	c.Set("Content-Length", strconv.Itoa(len(imageBytes)))
+	c.Set("Cache-Control", "public, max-age=3600")
+
+	return c.Send(imageBytes)
 }

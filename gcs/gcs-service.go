@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net/http"
 	"path/filepath"
 	"strings"
 
@@ -160,4 +161,50 @@ func contentType(fileName string) string {
 	}
 
 	return "application/octet-stream"
+}
+
+func (s *Service) GetImage(
+	ctx context.Context,
+	bucketName string,
+	objectName string,
+) ([]byte, string, error) {
+
+	if s == nil || s.client == nil {
+		return nil, "", fmt.Errorf("GCS service is not initialized")
+	}
+
+	if strings.TrimSpace(bucketName) == "" {
+		return nil, "", fmt.Errorf("GCS bucket name is required")
+	}
+
+	if strings.TrimSpace(objectName) == "" {
+		return nil, "", fmt.Errorf("GCS object name is required")
+	}
+
+	reader, err := s.client.
+		Bucket(bucketName).
+		Object(objectName).
+		NewReader(ctx)
+
+	if err != nil {
+		return nil, "", fmt.Errorf(
+			"failed to create GCS image reader: %w",
+			err,
+		)
+	}
+
+	defer reader.Close()
+
+	imageBytes, err := io.ReadAll(reader)
+
+	if err != nil {
+		return nil, "", fmt.Errorf(
+			"failed to read image from GCS: %w",
+			err,
+		)
+	}
+
+	contentType := http.DetectContentType(imageBytes)
+
+	return imageBytes, contentType, nil
 }
