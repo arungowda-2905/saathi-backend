@@ -162,3 +162,104 @@ func UpdateVideoFeedback(c *fiber.Ctx) error {
         "rating":   req.Rating,
     })
 }
+func GetVideoProgress(c *fiber.Ctx) error {
+	videoID := c.Params("video_id")
+
+	if videoID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "video_id is required",
+		})
+	}
+
+	progress, err := tutorialrepository.GetVideoProgress(
+		hardcodedEmployeeID,
+		videoID,
+	)
+
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "video progress not found",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to fetch video progress",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"video_id":         progress.VideoID,
+		"position_seconds": progress.PositionSeconds,
+		"completed":        progress.Completed,
+		"last_watched_at":  progress.LastWatchedAt,
+		"updated_at":       progress.UpdatedAt,
+	})
+}
+
+func UpdateVideoProgress(c *fiber.Ctx) error {
+	videoID := c.Params("video_id")
+
+	if videoID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "video_id is required",
+		})
+	}
+
+	var req dto.UpdateVideoProgressRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
+		})
+	}
+
+	if req.PositionSeconds < 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "position_seconds cannot be negative",
+		})
+	}
+
+	// Check whether progress exists
+	progress, err := tutorialrepository.GetVideoProgress(
+		hardcodedEmployeeID,
+		videoID,
+	)
+
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "video progress not found",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to check video progress",
+		})
+	}
+
+	if progress == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "video progress not found",
+		})
+	}
+
+	err = tutorialrepository.UpdateVideoProgress(
+		hardcodedEmployeeID,
+		videoID,
+		req.PositionSeconds,
+		req.Completed,
+	)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to update video progress",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"video_id":         videoID,
+		"position_seconds": req.PositionSeconds,
+		"completed":        req.Completed,
+	})
+}

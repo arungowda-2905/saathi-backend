@@ -18,4 +18,5 @@ func SetupRoutes(app *fiber.App, tutorialHandler *handlers.TutorialHandler) {
 	api.Post("/videos/:video_id/progress", handlers.CreateVideoProgress)
 	api.Patch("/videos/:video_id/progress/feedback", handlers.UpdateVideoFeedback)
 	api.Get("/v1/thumbnail/:videoId", tutorialHandler.GetTutorialThumbnailByID)
+	api.Patch("/videos/:video_id/progress", handlers.UpdateVideoProgress)
 }

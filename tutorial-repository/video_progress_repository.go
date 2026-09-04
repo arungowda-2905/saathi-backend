@@ -75,3 +75,29 @@ func UpdateVideoFeedback(userID, videoID, rating string) error {
 
     return err
 }
+
+func UpdateVideoProgress(
+	userID string,
+	videoID string,
+	positionSeconds int,
+	completed bool,
+) error {
+
+	_, err := videoProgressCollection.UpdateOne(
+		context.Background(),
+		bson.M{
+			"user_id":  userID,
+			"video_id": videoID,
+		},
+		bson.M{
+			"$set": bson.M{
+				"position_seconds": positionSeconds,
+				"completed":        completed,
+				"last_watched_at":  time.Now(),
+				"updated_at":       time.Now(),
+			},
+		},
+	)
+
+	return err
+}
