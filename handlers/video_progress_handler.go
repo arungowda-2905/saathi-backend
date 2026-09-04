@@ -6,7 +6,7 @@ import (
 
 	"saathi-backend/dto"
 	"saathi-backend/model"
-	"saathi-backend/tutorial-repository"
+	tutorialrepository "saathi-backend/tutorial-repository"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -98,69 +98,69 @@ func CreateVideoProgress(c *fiber.Ctx) error {
 }
 
 func UpdateVideoFeedback(c *fiber.Ctx) error {
-    videoID := c.Params("video_id")
+	videoID := c.Params("video_id")
 
-    if videoID == "" {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "error": "video_id is required",
-        })
-    }
+	if videoID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "video_id is required",
+		})
+	}
 
-    var req dto.VideoFeedbackRequest
+	var req dto.VideoFeedbackRequest
 
-    if err := c.BodyParser(&req); err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "error": "invalid request body",
-        })
-    }
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
+		})
+	}
 
-    if req.Rating != "helpful" && req.Rating != "not_helpful" {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "error": "rating must be helpful or not_helpful",
-        })
-    }
+	if req.Rating != "helpful" && req.Rating != "not_helpful" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "rating must be helpful or not_helpful",
+		})
+	}
 
-    // Check whether progress already exists
-    progress, err := tutorialrepository.GetVideoProgress(
-        hardcodedEmployeeID,
-        videoID,
-    )
+	// Check whether progress already exists
+	progress, err := tutorialrepository.GetVideoProgress(
+		hardcodedEmployeeID,
+		videoID,
+	)
 
-    if err != nil {
-        if errors.Is(err, mongo.ErrNoDocuments) {
-            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-                "error": "video progress not found",
-            })
-        }
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "video progress not found",
+			})
+		}
 
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-            "error": "failed to check video progress",
-        })
-    }
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to check video progress",
+		})
+	}
 
-    if progress == nil {
-        return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-            "error": "video progress not found",
-        })
-    }
+	if progress == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "video progress not found",
+		})
+	}
 
-    // Update only rating
-    err = tutorialrepository.UpdateVideoFeedback(
-        hardcodedEmployeeID,
-        videoID,
-        req.Rating,
-    )
+	// Update only rating
+	err = tutorialrepository.UpdateVideoFeedback(
+		hardcodedEmployeeID,
+		videoID,
+		req.Rating,
+	)
 
-    if err != nil {
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-            "error": "failed to update feedback",
-        })
-    }
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to update feedback",
+		})
+	}
 
-    return c.Status(fiber.StatusOK).JSON(fiber.Map{
-        "video_id": videoID,
-        "rating":   req.Rating,
-    })
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"video_id": videoID,
+		"rating":   req.Rating,
+	})
 }
 func GetVideoProgress(c *fiber.Ctx) error {
 	videoID := c.Params("video_id")
@@ -189,11 +189,11 @@ func GetVideoProgress(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"video_id":         progress.VideoID,
+		"rating":           progress.Rating,
 		"position_seconds": progress.PositionSeconds,
 		"completed":        progress.Completed,
 		"last_watched_at":  progress.LastWatchedAt,
-		"updated_at":       progress.UpdatedAt,
+		"created_at":       progress.CreatedAt,
 	})
 }
 
