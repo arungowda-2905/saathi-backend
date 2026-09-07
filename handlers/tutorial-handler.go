@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	mp4 "github.com/abema/go-mp4"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
@@ -21,6 +22,15 @@ import (
 
 type TutorialHandler struct {
 	service *tutorialservice.TutorialService
+}
+
+type AddTranslationRequest struct {
+	Language         string `json:"language"`
+	VideoTitle       string `json:"video_title"`
+	VideoDescription string `json:"video_description"`
+	VideoBucket      string `json:"video_bucket"`
+	TitleImage       string `json:"title_image"`
+	Duration         string `json:"duration"`
 }
 
 func NewTutorialHandler(service *tutorialservice.TutorialService) *TutorialHandler {
@@ -43,26 +53,46 @@ func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 	description := c.FormValue("description")
 	applicationName := c.FormValue("applicationName")
 	assignToRole := c.FormValue("assignToRole")
-
+	language := c.FormValue("language")
+	duration := strings.TrimSpace(c.FormValue("duration"))
 	roles := parseRoles(assignToRole)
 
 	if title == "" ||
 		description == "" ||
 		applicationName == "" ||
+		language == "" ||
+		duration == "" ||
 		len(roles) == 0 {
 
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "All metadata fields are required",
 		})
 	}
+	if !isValidDuration(duration) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Duration must use MM:SS format",
+		})
+	}
+	language = strings.ToLower(language)
+	if !isSupportedLanguage(language) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid language",
+		})
+	}
 
-	tutorial := model.Tutorial{
-		AppName:          applicationName,
+	translation := model.Translation{
 		VideoTitle:       title,
 		VideoDescription: description,
-		Roles:            roles,
-		Version:          "1.0",
-		IsActive:         true,
+		Video_Bucket:     videoBucketUUID,
+		TitleImage:       thumbnailUUID,
+		Duration:         duration,
+	}
+	tutorial := model.Tutorial{
+		AppName:      applicationName,
+		Translations: map[string]model.Translation{language: translation},
+		Roles:        roles,
+		Version:      "1.0",
+		IsActive:     true,
 	}
 
 	ctx, cancel := context.WithTimeout(
@@ -87,6 +117,53 @@ func (h *TutorialHandler) HandleVideoUpload(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"message":  "Video uploaded successfully",
 		"video_id": createdTutorial.Video_ID,
+	})
+}
+
+func (h *TutorialHandler) AddTutorialTranslation(c *fiber.Ctx) error {
+	videoID := strings.TrimSpace(c.Params("videoId"))
+	if videoID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Video ID is required"})
+	}
+
+	var request AddTranslationRequest
+	if err := c.BodyParser(&request); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	request.Language = strings.ToLower(strings.TrimSpace(request.Language))
+	fmt.Println("jdjdjdjdjdjdjdjdj", request.Language)
+	if !isSupportedLanguage(request.Language) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid language"})
+	}
+	if request.VideoTitle == "" || request.VideoDescription == "" || request.VideoBucket == "" || request.TitleImage == "" || !isValidDuration(request.Duration) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Translation fields are invalid"})
+	}
+
+	translation := model.Translation{
+		VideoTitle:       request.VideoTitle,
+		VideoDescription: request.VideoDescription,
+		Video_Bucket:     request.VideoBucket,
+		TitleImage:       request.TitleImage,
+		Duration:         request.Duration,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := h.service.AddTranslation(ctx, videoID, request.Language, translation); err != nil {
+		if errors.Is(err, tutorialservice.ErrInvalidVideoID) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid video ID"})
+		}
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Tutorial not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to add translation"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message":  "Translation added successfully",
+		"video_id": videoID,
+		"language": request.Language,
 	})
 }
 
@@ -139,8 +216,8 @@ func (h *TutorialHandler) GetTutorialByID(c *fiber.Ctx) error {
 
 func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
 
-	userRole := c.Get("X-Role")
-	//userRole = "admin" // Hardcoded for testing purposes. Remove this line in production.
+	//userRole := c.Get("X-Role")
+	userRole := "admin" // Hardcoded for testing purposes. Remove this line in production.
 	if userRole == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "User role not found",
@@ -228,6 +305,13 @@ func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
 		})
 	}
 
+	duration, err := videoDuration(videoSrc)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
 	// Open thumbnail
 	thumbnailSrc, err := thumbnailFile.Open()
 	if err != nil {
@@ -262,7 +346,46 @@ func (h *TutorialHandler) UploadVideo(c *fiber.Ctx) error {
 		"message":           "Video and thumbnail uploaded successfully",
 		"video_bucket_uuid": videoBucketUUID,
 		"thumbnail_uuid":    thumbnailUUID,
+		"duration":          duration,
 	})
+}
+
+func videoDuration(file multipart.File) (string, error) {
+	var movieHeader *mp4.Mvhd
+
+	_, err := mp4.ReadBoxStructure(file, func(handle *mp4.ReadHandle) (interface{}, error) {
+		if handle.BoxInfo.Type == mp4.BoxTypeMvhd() {
+			box, _, err := handle.ReadPayload()
+			if err != nil {
+				return nil, err
+			}
+
+			var ok bool
+			movieHeader, ok = box.(*mp4.Mvhd)
+			if !ok {
+				return nil, errors.New("invalid video movie header")
+			}
+
+			return movieHeader, nil
+		}
+
+		_, err := handle.Expand()
+		return nil, err
+	})
+	if err != nil {
+		return "", errors.New("Unable to read video duration")
+	}
+
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return "", errors.New("Unable to process video file")
+	}
+	fmt.Println("movieHeader:", movieHeader)
+	if movieHeader == nil || movieHeader.Timescale == 0 {
+		return "", errors.New("Unable to read video duration")
+	}
+
+	totalSeconds := int((movieHeader.GetDuration() + uint64(movieHeader.Timescale/2)) / uint64(movieHeader.Timescale))
+	return fmt.Sprintf("%02d:%02d", totalSeconds/60, totalSeconds%60), nil
 }
 
 func validateThumbnailFile(file *multipart.FileHeader) error {
@@ -389,6 +512,26 @@ func parseRoles(value string) []string {
 	}
 
 	return roles
+}
+
+func isSupportedLanguage(language string) bool {
+	switch language {
+	case "en", "hi", "kn", "es", "fr", "de", "zh", "ja", "ar", "pt", "ru":
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidDuration(value string) bool {
+	parts := strings.Split(value, ":")
+	if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) != 2 {
+		return false
+	}
+
+	minutes, minuteErr := strconv.Atoi(parts[0])
+	seconds, secondErr := strconv.Atoi(parts[1])
+	return minuteErr == nil && secondErr == nil && minutes >= 0 && seconds >= 0 && seconds < 60
 }
 
 func (h *TutorialHandler) GetTutorialThumbnailByID(c *fiber.Ctx) error {

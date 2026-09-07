@@ -57,22 +57,23 @@ func (s *TutorialService) CreateNewTutorial(
 		)
 	}
 
-	if tutorial.VideoTitle == "" {
-		return model.Tutorial{}, fmt.Errorf(
-			"video title is required",
-		)
-	}
-
-	if tutorial.VideoDescription == "" {
-		return model.Tutorial{}, fmt.Errorf(
-			"video description is required",
-		)
-	}
-
 	if len(tutorial.Roles) == 0 {
 		return model.Tutorial{}, fmt.Errorf(
 			"at least one role is required",
 		)
+	}
+
+	if len(tutorial.Translations) == 0 {
+		return model.Tutorial{}, fmt.Errorf("at least one translation is required")
+	}
+
+	for language, translation := range tutorial.Translations {
+		if translation.VideoTitle == "" || translation.VideoDescription == "" {
+			return model.Tutorial{}, fmt.Errorf("title and description are required for language %s", language)
+		}
+		if translation.Duration == "" {
+			return model.Tutorial{}, fmt.Errorf("duration is required for language %s", language)
+		}
 	}
 
 	videoPrefix := path.Join(
@@ -116,11 +117,13 @@ func (s *TutorialService) CreateNewTutorial(
 	// Generate final UUID for the tutorial.
 	videoID := uuid.New()
 
-	tutorial.Video_ID = videoID
+	tutorial.Video_ID = videoID.String()
 
-	// Store only the UUID-based filenames in MongoDB.
-	tutorial.Video_Bucket = path.Base(videoPath)
-	tutorial.TitleImage = path.Base(thumbnailPath)
+	for language, translation := range tutorial.Translations {
+		translation.Video_Bucket = path.Base(videoPath)
+		translation.TitleImage = path.Base(thumbnailPath)
+		tutorial.Translations[language] = translation
+	}
 
 	// Set timestamps.
 	now := time.Now()
@@ -154,8 +157,7 @@ func (s *TutorialService) GetTutorialByID(
 		return nil, fmt.Errorf("video ID is required")
 	}
 
-	videoUUID, err := uuid.Parse(videoId)
-	if err != nil {
+	if _, err := uuid.Parse(videoId); err != nil {
 		return nil, fmt.Errorf(
 			"%w: %s",
 			ErrInvalidVideoID,
@@ -165,7 +167,7 @@ func (s *TutorialService) GetTutorialByID(
 
 	tutorial, err := s.repository.GetTutorialByID(
 		ctx,
-		videoUUID,
+		videoId,
 		// userRole,
 	)
 	if err != nil {
@@ -180,10 +182,15 @@ func (s *TutorialService) GetTutorialByID(
 		)
 	}
 
+	translation, ok := firstTranslation(tutorial.Translations)
+	if !ok {
+		return nil, fmt.Errorf("tutorial translation is missing")
+	}
+
 	videoPath := path.Join(
 		strings.TrimSuffix(s.prefix, "/"),
 		"video",
-		tutorial.Video_Bucket,
+		translation.Video_Bucket,
 	)
 
 	if videoPath == "" {
@@ -222,6 +229,14 @@ func (s *TutorialService) GetTutorialByID(
 
 	return videoBytes, nil
 }
+
+func firstTranslation(translations map[string]model.Translation) (model.Translation, bool) {
+	for _, translation := range translations {
+		return translation, true
+	}
+	return model.Translation{}, false
+}
+
 func (s *TutorialService) UploadVideoAndThumbnail(
 	ctx context.Context,
 	videoFileName string,
@@ -331,6 +346,18 @@ func (s *TutorialService) GetDetailsByAppName(
 	return s.repository.GetTutorialsByAppName(ctx, appName)
 }
 
+func (s *TutorialService) AddTranslation(
+	ctx context.Context,
+	videoID string,
+	language string,
+	translation model.Translation,
+) error {
+	if _, err := uuid.Parse(videoID); err != nil {
+		return fmt.Errorf("%w: %s", ErrInvalidVideoID, videoID)
+	}
+	return s.repository.UpdateTranslation(ctx, videoID, language, translation)
+}
+
 func (s *TutorialService) GetTutorialThumbnailByID(
 	videoID string,
 	ctx context.Context,
@@ -340,8 +367,7 @@ func (s *TutorialService) GetTutorialThumbnailByID(
 		return nil, "", fmt.Errorf("video ID is required")
 	}
 
-	videoUUID, err := uuid.Parse(videoID)
-	if err != nil {
+	if _, err := uuid.Parse(videoID); err != nil {
 		return nil, "", fmt.Errorf(
 			"%w: %s",
 			ErrInvalidVideoID,
@@ -351,7 +377,7 @@ func (s *TutorialService) GetTutorialThumbnailByID(
 
 	tutorial, err := s.repository.GetTutorialByID(
 		ctx,
-		videoUUID,
+		videoID,
 	)
 
 	if err != nil {
@@ -366,10 +392,15 @@ func (s *TutorialService) GetTutorialThumbnailByID(
 		)
 	}
 
+	translation, ok := firstTranslation(tutorial.Translations)
+	if !ok {
+		return nil, "", fmt.Errorf("tutorial translation is missing")
+	}
+
 	imagePath := path.Join(
 		strings.TrimSuffix(s.prefix, "/"),
 		"thumbnail",
-		tutorial.TitleImage,
+		translation.TitleImage,
 	)
 
 	if imagePath == "" {

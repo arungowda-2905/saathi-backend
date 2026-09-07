@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"saathi-backend/config"
 	"saathi-backend/dto"
 	"saathi-backend/gcs"
 	"saathi-backend/model"
 
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -48,7 +48,7 @@ func (r *TutorialRepository) InsertTutorial(
 
 func (r *TutorialRepository) GetTutorialByID(
 	ctx context.Context,
-	videoID uuid.UUID,
+	videoID string,
 	// userRole string,
 ) (model.Tutorial, error) {
 
@@ -179,6 +179,26 @@ func (r *TutorialRepository) GetTutorialsByAppName(
 	}
 
 	return tutorials, nil
+}
+
+func (r *TutorialRepository) UpdateTranslation(
+	ctx context.Context,
+	videoID string,
+	language string,
+	translation model.Translation,
+) error {
+	result, err := tutorialCollection.UpdateOne(
+		ctx,
+		bson.M{"video_id": videoID, "is_active": true},
+		bson.M{"$set": bson.M{"translations." + language: translation, "updated_at": time.Now()}},
+	)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
 }
 
 func (r *TutorialRepository) GetUploadFile(

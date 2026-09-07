@@ -12,6 +12,7 @@ func SetupRoutes(app *fiber.App, tutorialHandler *handlers.TutorialHandler) {
 
 	api.Post("/v1/upload", tutorialHandler.UploadVideo)
 	api.Post("/videos/v1", tutorialHandler.HandleVideoUpload)
+	api.Patch("/v1/:videoId/translations", tutorialHandler.AddTutorialTranslation)
 	api.Get("/v1/:videoId", tutorialHandler.GetTutorialByID)
 	api.Get("/details/v1", tutorialHandler.GetDetailsByRole)
 	api.Get("/v1/tutorials/app", tutorialHandler.GetDetailsByAppName)

@@ -7,7 +7,6 @@ import (
 	"saathi-backend/model"
 	"time"
 
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -28,61 +27,13 @@ func SeedTutorials() error {
 
 	tutorials := []interface{}{
 
-		model.Tutorial{
-			Video_ID:         uuid.New(),
-			Video_Bucket:     "455719_Iceland_Iceland83_1280x720.mp4",
-			AppName:          "saathi",
-			VideoTitle:       "Introduction to Redis",
-			VideoDescription: "Learn the basics of Redis",
-			Version:          "1.0",
-			TitleImage:       "redis_image",
-			Roles:            []string{"admin", "developer"},
-			IsActive:         false,
-			CreatedAt:        time.Now(),
-			UpdatedAt:        time.Now(),
-		},
+		model.Tutorial{Video_ID: "00000000-0000-0000-0000-000000000001", AppName: "saathi", Translations: map[string]model.Translation{"en": {VideoTitle: "Introduction to Redis", VideoDescription: "Learn the basics of Redis", Video_Bucket: "455719_Iceland_Iceland83_1280x720.mp4", TitleImage: "redis_image", Duration: "01:00"}}, Version: "1.0", Roles: []string{"admin", "developer"}, IsActive: false, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 
-		model.Tutorial{
-			Video_ID:         uuid.New(),
-			Video_Bucket:     "455719_Iceland_Iceland83_1280x720.mp4",
-			AppName:          "saathi",
-			VideoTitle:       "Introduction to Go",
-			VideoDescription: "Learn the basics of Golang",
-			Version:          "1.0",
-			TitleImage:       "go_image",
-			Roles:            []string{"admin", "developer"},
-			IsActive:         true,
-			CreatedAt:        time.Now(),
-			UpdatedAt:        time.Now(),
-		},
+		model.Tutorial{Video_ID: "00000000-0000-0000-0000-000000000002", AppName: "saathi", Translations: map[string]model.Translation{"en": {VideoTitle: "Introduction to Go", VideoDescription: "Learn the basics of Golang", Video_Bucket: "455719_Iceland_Iceland83_1280x720.mp4", TitleImage: "go_image", Duration: "01:00"}}, Version: "1.0", Roles: []string{"admin", "developer"}, IsActive: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 
-		model.Tutorial{
-			Video_ID:         uuid.New(),
-			Video_Bucket:     "455719_Iceland_Iceland83_1280x720.mp4",
-			AppName:          "saathi",
-			VideoTitle:       "MongoDB Introduction",
-			VideoDescription: "Learn MongoDB fundamentals",
-			Version:          "1.0",
-			TitleImage:       "https://storage.googleapis.com/mybucket/mongodb.jpg",
-			Roles:            []string{"admin", "developer", "manager"},
-			IsActive:         true,
-			CreatedAt:        time.Now(),
-			UpdatedAt:        time.Now(),
-		},
+		model.Tutorial{Video_ID: "00000000-0000-0000-0000-000000000003", AppName: "saathi", Translations: map[string]model.Translation{"en": {VideoTitle: "MongoDB Introduction", VideoDescription: "Learn MongoDB fundamentals", Video_Bucket: "455719_Iceland_Iceland83_1280x720.mp4", TitleImage: "mongodb.jpg", Duration: "01:00"}}, Version: "1.0", Roles: []string{"admin", "developer", "manager"}, IsActive: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 
-		model.Tutorial{
-			Video_ID:         uuid.New(),
-			Video_Bucket:     "455719_Iceland_Iceland83_1280x720.mp4",
-			AppName:          "saathi",
-			VideoTitle:       "Kafka Basics",
-			VideoDescription: "Learn Apache Kafka",
-			Version:          "1.0",
-			TitleImage:       "https://storage.googleapis.com/mybucket/kafka.jpg",
-			Roles:            []string{"admin", "manager"},
-			IsActive:         true,
-			CreatedAt:        time.Now(),
-			UpdatedAt:        time.Now(),
-		},
+		model.Tutorial{Video_ID: "00000000-0000-0000-0000-000000000004", AppName: "saathi", Translations: map[string]model.Translation{"en": {VideoTitle: "Kafka Basics", VideoDescription: "Learn Apache Kafka", Video_Bucket: "455719_Iceland_Iceland83_1280x720.mp4", TitleImage: "kafka.jpg", Duration: "01:00"}}, Version: "1.0", Roles: []string{"admin", "manager"}, IsActive: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}
 
 	result, err := collection.InsertMany(ctx, tutorials)
