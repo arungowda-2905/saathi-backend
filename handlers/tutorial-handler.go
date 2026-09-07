@@ -139,8 +139,8 @@ func (h *TutorialHandler) GetTutorialByID(c *fiber.Ctx) error {
 
 func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
 
-	userRole := c.Get("X-Role")
-	//userRole = "admin" // Hardcoded for testing purposes. Remove this line in production.
+	//userRole := c.Get("X-Role")
+	userRole := "admin" // Hardcoded for testing purposes. Remove this line in production.
 	if userRole == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "User role not found",
