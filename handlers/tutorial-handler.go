@@ -132,7 +132,7 @@ func (h *TutorialHandler) AddTutorialTranslation(c *fiber.Ctx) error {
 	}
 
 	request.Language = strings.ToLower(strings.TrimSpace(request.Language))
-	fmt.Println("jdjdjdjdjdjdjdjdj", request.Language)
+
 	if !isSupportedLanguage(request.Language) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid language"})
 	}
@@ -434,6 +434,12 @@ func (h *TutorialHandler) GetDetailsByAppName(c *fiber.Ctx) error {
 		})
 	}
 
+	language := c.Get("X-Language")
+
+	if strings.TrimSpace(language) == "" {
+		language = "en"
+	}
+
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		10*time.Second,
@@ -443,6 +449,7 @@ func (h *TutorialHandler) GetDetailsByAppName(c *fiber.Ctx) error {
 	tutorials, err := h.service.GetDetailsByAppName(
 		ctx,
 		appName,
+		language,
 	)
 
 	if err != nil {

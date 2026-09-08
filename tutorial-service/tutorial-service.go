@@ -335,15 +335,25 @@ func (s *TutorialService) GetDetailsByRole(
 func (s *TutorialService) GetDetailsByAppName(
 	ctx context.Context,
 	appName string,
+	language string,
 ) ([]dto.TutorialResponseDTO, error) {
 
 	appName = strings.TrimSpace(appName)
+	language = strings.TrimSpace(strings.ToLower(language))
 
 	if appName == "" {
 		return nil, ErrAppNameNotFound
 	}
 
-	return s.repository.GetTutorialsByAppName(ctx, appName)
+	if language == "" {
+		language = "en"
+	}
+
+	return s.repository.GetTutorialsByAppName(
+		ctx,
+		appName,
+		language,
+	)
 }
 
 func (s *TutorialService) AddTranslation(
@@ -393,6 +403,7 @@ func (s *TutorialService) GetTutorialThumbnailByID(
 	}
 
 	translation, ok := firstTranslation(tutorial.Translations)
+	fmt.Println("arun", translation)
 	if !ok {
 		return nil, "", fmt.Errorf("tutorial translation is missing")
 	}

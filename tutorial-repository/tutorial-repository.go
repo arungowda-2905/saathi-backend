@@ -148,6 +148,7 @@ func (r *TutorialRepository) GetTutorialsByRoles(
 func (r *TutorialRepository) GetTutorialsByAppName(
 	ctx context.Context,
 	appName string,
+	language string,
 ) ([]dto.TutorialResponseDTO, error) {
 
 	filter := bson.M{
@@ -156,11 +157,9 @@ func (r *TutorialRepository) GetTutorialsByAppName(
 	}
 
 	projection := bson.M{
-		"video_id":          1,
-		"video_title":       1,
-		"video_description": 1,
-		"title_image":       1,
-		"duration":          1,
+		"video_id":     1,
+		"app_name":     1,
+		"translations": 1,
 	}
 
 	opts := options.Find().SetProjection(projection)
@@ -172,13 +171,43 @@ func (r *TutorialRepository) GetTutorialsByAppName(
 
 	defer cursor.Close(ctx)
 
-	tutorials := make([]dto.TutorialResponseDTO, 0)
+	var tutorials []model.Tutorial
 
 	if err := cursor.All(ctx, &tutorials); err != nil {
 		return nil, err
 	}
 
-	return tutorials, nil
+	result := make([]dto.TutorialResponseDTO, 0, len(tutorials))
+
+	for _, tutorial := range tutorials {
+
+		// First try user's selected language
+		translation, exists := tutorial.Translations[language]
+
+		// If selected language doesn't exist,
+		// fallback to English
+		if !exists {
+			translation, exists = tutorial.Translations["en"]
+		}
+
+		// If even English doesn't exist,
+		// skip this tutorial or handle as an error
+		if !exists {
+			continue
+		}
+
+		result = append(result, dto.TutorialResponseDTO{
+			Video_ID:         tutorial.Video_ID,
+			AppName:          tutorial.AppName,
+			VideoTitle:       translation.VideoTitle,
+			VideoDescription: translation.VideoDescription,
+			Video_Bucket:     translation.Video_Bucket,
+			TitleImage:       translation.TitleImage,
+			Duration:         translation.Duration,
+		})
+	}
+
+	return result, nil
 }
 
 func (r *TutorialRepository) UpdateTranslation(
