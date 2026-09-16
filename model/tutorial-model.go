@@ -3,41 +3,33 @@ package model
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// type Tutorial struct {
-// 	ID               bson.ObjectID `bson:"_id,omitempty" json:"id"`
-// 	Video_ID         uuid.UUID     `bson:"video_id" json:"video_id" validate:"required"`
-// 	Video_Bucket     string        `bson:"video_bucket" json:"video_bucket" validate:"required"`
-// 	AppName          string        `bson:"app_name" json:"app_name" validate:"required"`
-// 	VideoTitle       string        `bson:"video_title" json:"video_title" validate:"required"`
-// 	VideoDescription string        `bson:"video_description" json:"video_description" validate:"required"`
-// 	Version          string        `bson:"version" json:"version" validate:"required"`
-// 	TitleImage       string        `bson:"title_image" json:"title_image" validate:"required"`
-// 	Roles            []string      `bson:"roles" json:"roles" validate:"required,min=1"`
-// 	IsActive         bool          `bson:"is_active" json:"is_active"`
-// 	CreatedAt        time.Time     `bson:"created_at" json:"created_at"`
-// 	UpdatedAt        time.Time     `bson:"updated_at" json:"updated_at"`
-// }
+type Tutorial struct {
+	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	VideoID string             `bson:"video_id" json:"videoId"`
+	AppName string             `bson:"app_name" json:"appName"`
 
-type Translation struct {
-	VideoTitle       string `bson:"video_title" json:"video_title"`
-	VideoDescription string `bson:"video_description" json:"video_description"`
-	Video_Bucket     string `bson:"video_bucket,omitempty" json:"video_bucket,omitempty"`
-	TitleImage       string `bson:"title_image" json:"title_image"`
-	Duration         string `bson:"duration" json:"duration"`
+	Version  string   `bson:"version" json:"version"`
+	Roles    []string `bson:"roles" json:"roles"`
+	IsActive bool     `bson:"is_active" json:"isActive"`
+
+	CreatedAt time.Time `bson:"created_at" json:"createdAt"`
+	UpdatedAt time.Time `bson:"updated_at" json:"updatedAt"`
 }
 
-type Tutorial struct {
-	ID           bson.ObjectID          `bson:"_id,omitempty" json:"id"`
-	Video_ID     string                 `bson:"video_id" json:"video_id"`
-	AppName      string                 `bson:"app_name" json:"app_name"`
-	Translations map[string]Translation `bson:"translations" json:"translations"`
+type TutorialTranslation struct {
+	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	VideoID  string             `bson:"video_id" json:"videoId"`
+	Language string             `bson:"language" json:"language"`
 
-	Version   string    `bson:"version" json:"version"`
-	Roles     []string  `bson:"roles" json:"roles"`
-	IsActive  bool      `bson:"is_active" json:"is_active"`
-	CreatedAt time.Time `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+	VideoTitle       string `bson:"video_title" json:"videoTitle"`
+	VideoDescription string `bson:"video_description" json:"videoDescription"`
+	VideoBucket      string `bson:"video_bucket,omitempty" json:"videoBucket,omitempty"`
+	TitleImage       string `bson:"title_image,omitempty" json:"titleImage,omitempty"`
+	Duration         string `bson:"duration,omitempty" json:"duration,omitempty"`
+
+	CreatedAt time.Time `bson:"created_at" json:"createdAt"`
+	UpdatedAt time.Time `bson:"updated_at" json:"updatedAt"`
 }

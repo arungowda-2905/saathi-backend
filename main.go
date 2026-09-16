@@ -6,11 +6,6 @@ import (
 
 	"saathi-backend/config"
 	"saathi-backend/gcs"
-	"saathi-backend/handlers"
-	"saathi-backend/routes"
-	"saathi-backend/test_data"
-	tutorialrepository "saathi-backend/tutorial-repository"
-	tutorialservice "saathi-backend/tutorial-service"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -29,12 +24,6 @@ func main() {
 	}
 	defer config.DisconnectDB()
 
-	if err := test_data.SeedTutorials(); err != nil {
-		log.Fatalf("Failed to seed tutorials: %v", err)
-	}
-
-	tutorialrepository.InitRepository()
-
 	ctx := context.Background()
 
 	// Create GCS service
@@ -48,19 +37,9 @@ func main() {
 		}
 	}()
 
-	// Create repository
-	repository := tutorialrepository.NewTutorialRepository(gcsService)
-
-	// Create tutorial service
-	service := tutorialservice.NewTutorialService(repository)
-
-	// Create handler
-	tutorialHandler := handlers.NewTutorialHandler(service)
-
 	app := fiber.New(fiber.Config{
 		BodyLimit: 500 * 1024 * 1024,
 	})
-	tutorialrepository.CreateVideoProgressIndex()
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "http://localhost:3000,http://127.0.0.1:3000",
@@ -68,7 +47,7 @@ func main() {
 		AllowMethods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 	}))
 
-	routes.SetupRoutes(app, tutorialHandler)
+	//routes.SetupRoutes(app, tutorialHandler)
 
 	log.Println("Server running on http://localhost:8080")
 
