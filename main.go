@@ -1,11 +1,11 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"saathi-backend/config"
-	"saathi-backend/gcs"
+	"saathi-backend/routes"
+	tutorialrepository "saathi-backend/tutorial-repository"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -22,20 +22,11 @@ func main() {
 	if err := config.ConnectDB(); err != nil {
 		log.Fatal("MongoDB connection failed:", err)
 	}
+
+	// Initialize tutorial translation repository
+	tutorialrepository.InitRepository()
+
 	defer config.DisconnectDB()
-
-	ctx := context.Background()
-
-	// Create GCS service
-	gcsService, err := gcs.NewService(ctx)
-	if err != nil {
-		log.Fatalf("Failed to initialize GCS service: %v", err)
-	}
-	defer func() {
-		if err := gcsService.Close(); err != nil {
-			log.Printf("Failed to close GCS service: %v", err)
-		}
-	}()
 
 	app := fiber.New(fiber.Config{
 		BodyLimit: 500 * 1024 * 1024,
@@ -47,7 +38,7 @@ func main() {
 		AllowMethods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 	}))
 
-	//routes.SetupRoutes(app, tutorialHandler)
+	routes.SetupRoutes(app)
 
 	log.Println("Server running on http://localhost:8080")
 
