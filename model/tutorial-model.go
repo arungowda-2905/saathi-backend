@@ -1,15 +1,11 @@
 package model
 
-import (
-	"time"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
-)
+import "time"
 
 type Tutorial struct {
-	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	VideoID string             `bson:"video_id" json:"videoId"`
-	AppName string             `bson:"app_name" json:"appName"`
+	ID      string `bson:"_id" json:"id"`
+	VideoID string `bson:"video_id" json:"videoId"`
+	AppName string `bson:"app_name" json:"appName"`
 
 	Version  string   `bson:"version" json:"version"`
 	Roles    []string `bson:"roles" json:"roles"`
@@ -20,9 +16,9 @@ type Tutorial struct {
 }
 
 type TutorialTranslation struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	VideoID  string             `bson:"video_id" json:"videoId"`
-	Language string             `bson:"language" json:"language"`
+	ID         string `bson:"_id" json:"id"`
+	TutorialID string `bson:"tutorial_id" json:"tutorialId"`
+	Language   string `bson:"language" json:"language"`
 
 	VideoTitle       string `bson:"video_title" json:"videoTitle"`
 	VideoDescription string `bson:"video_description" json:"videoDescription"`
