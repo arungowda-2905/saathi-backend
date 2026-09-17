@@ -4,12 +4,6 @@ import (
 	"log"
 
 	"saathi-backend/config"
-	"saathi-backend/handlers"
-	"saathi-backend/routes"
-	tutorialrepository "saathi-backend/tutorial-repository"
-	tutorialservice "saathi-backend/tutorial-service"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 // func main() {
@@ -67,15 +61,15 @@ func main() {
 		}
 	}()
 
-	tutorialRepository := tutorialrepository.NewTutorialRepository(config.DB)
-	tutorialService := tutorialservice.NewTutorialService(tutorialRepository)
-	tutorialHandler := handlers.NewTutorialHandler(tutorialService)
+	// tutorialRepository := tutorialrepository.NewTutorialRepository(config.DB)
+	// tutorialService := tutorialservice.NewTutorialService(tutorialRepository)
+	// tutorialHandler := handlers.NewTutorialHandler(tutorialService)
 
-	app := fiber.New()
-	routes.SetupRoutes(app, tutorialHandler)
+	// app := fiber.New()
+	// routes.SetupRoutes(app, tutorialHandler)
 
-	log.Println("Server running on http://localhost:8080")
-	if err := app.Listen(":8080"); err != nil {
-		log.Fatal(err)
-	}
+	// log.Println("Server running on http://localhost:8080")
+	// if err := app.Listen(":8080"); err != nil {
+	// 	log.Fatal(err)
+	// }
 }
