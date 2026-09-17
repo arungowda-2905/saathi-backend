@@ -2,13 +2,16 @@ package tutorialservice
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"saathi-backend/dto"
 	"saathi-backend/model"
+	tutorialrepository "saathi-backend/tutorial-repository"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type tutorialRepository interface {
@@ -38,20 +41,16 @@ func (s *TutorialService) HandleVideoUpload(
 	// Generate ONE unique UUID
 	tutorialID := uuid.New().String()
 
-	// Same ID is used as VideoID
-	videoID := tutorialID
-
 	// 1. Create Tutorial parent
 
 	tutorial := model.Tutorial{
-		ID:        tutorialID,
-		VideoID:   videoID,
-		AppName:   req.AppName,
-		Version:   req.Version,
-		Roles:     req.Roles,
-		IsActive:  req.IsActive,
-		CreatedAt: now,
-		UpdatedAt: now,
+		TutorialID: tutorialID,
+		AppName:    req.AppName,
+		Version:    req.Version,
+		Roles:      req.Roles,
+		IsActive:   req.IsActive,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	err := s.repository.CreateTutorial(ctx, tutorial)
@@ -62,7 +61,7 @@ func (s *TutorialService) HandleVideoUpload(
 	// 2. Create TutorialTranslation child
 
 	translation := model.TutorialTranslation{
-		ID:               uuid.New().String(),
+
 		TutorialID:       tutorialID,
 		Language:         req.Language,
 		VideoTitle:       req.VideoTitle,
@@ -84,4 +83,72 @@ func (s *TutorialService) HandleVideoUpload(
 		"tutorial":    tutorial,
 		"translation": translation,
 	}, nil
+}
+
+func CreateTutorialTranslation(
+	tutorialID string,
+	language string,
+	videoTitle string,
+	videoDescription string,
+	videoBucket string,
+	titleImage string,
+	duration string,
+) (*model.TutorialTranslation, error) {
+
+	// Validate required fields
+	if tutorialID == "" {
+		return nil, errors.New("tutorial_id is required")
+	}
+
+	if language == "" {
+		return nil, errors.New("language is required")
+	}
+
+	if videoTitle == "" {
+		return nil, errors.New("video_title is required")
+	}
+
+	if videoDescription == "" {
+		return nil, errors.New("video_description is required")
+	}
+
+	if videoBucket == "" {
+		return nil, errors.New("video_bucket is required")
+	}
+
+	if titleImage == "" {
+		return nil, errors.New("title_image is required")
+	}
+
+	if duration == "" {
+		return nil, errors.New("duration is required")
+	}
+
+	// Generate timestamps
+	now := time.Now()
+
+	translation := &model.TutorialTranslation{
+		ID:               primitive.NewObjectID(),
+		TutorialID:       tutorialID,
+		Language:         language,
+		VideoTitle:       videoTitle,
+		VideoDescription: videoDescription,
+		VideoBucket:      videoBucket,
+		TitleImage:       titleImage,
+		Duration:         duration,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+
+	// Save to MongoDB
+	err := tutorialrepository.CreateTranslation(
+		context.Background(),
+		*translation,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return translation, nil
 }

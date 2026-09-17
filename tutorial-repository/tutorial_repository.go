@@ -13,6 +13,8 @@ type TutorialRepository struct {
 	translationCollection *mongo.Collection
 }
 
+var tutorialCollection *mongo.Collection
+
 func NewTutorialRepository(db *mongo.Database) *TutorialRepository {
 	return &TutorialRepository{
 		tutorialCollection:    db.Collection("tutorials"),
@@ -36,6 +38,16 @@ func (r *TutorialRepository) CreateTutorialTranslation(
 ) error {
 
 	_, err := r.translationCollection.InsertOne(ctx, translation)
+
+	return err
+}
+
+func CreateTranslation(
+	ctx context.Context,
+	translation model.TutorialTranslation,
+) error {
+
+	_, err := tutorialCollection.InsertOne(ctx, translation)
 
 	return err
 }
