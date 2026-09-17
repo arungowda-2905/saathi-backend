@@ -2,6 +2,7 @@ package tutorialrepository
 
 import (
 	"context"
+	"fmt"
 
 	"saathi-backend/config"
 	"saathi-backend/model"
@@ -21,6 +22,6 @@ func CreateTranslation(
 ) error {
 
 	_, err := collection.InsertOne(ctx, translation)
-
+	fmt.Println("Inserting translation:", translation)
 	return err
 }
