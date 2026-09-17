@@ -2,18 +2,44 @@ package tutorialrepository
 
 import (
 	"context"
-	"fmt"
 
-	"saathi-backend/config"
 	"saathi-backend/model"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var collection *mongo.Collection
+type TutorialRepository struct {
+	tutorialCollection    *mongo.Collection
+	translationCollection *mongo.Collection
+}
 
-func InitRepository() {
-	collection = config.DB.Collection("tutorial_translations")
+var tutorialCollection *mongo.Collection
+
+func NewTutorialRepository(db *mongo.Database) *TutorialRepository {
+	return &TutorialRepository{
+		tutorialCollection:    db.Collection("tutorials"),
+		translationCollection: db.Collection("tutorial_translations"),
+	}
+}
+
+func (r *TutorialRepository) CreateTutorial(
+	ctx context.Context,
+	tutorial model.Tutorial,
+) error {
+
+	_, err := r.tutorialCollection.InsertOne(ctx, tutorial)
+
+	return err
+}
+
+func (r *TutorialRepository) CreateTutorialTranslation(
+	ctx context.Context,
+	translation model.TutorialTranslation,
+) error {
+
+	_, err := r.translationCollection.InsertOne(ctx, translation)
+
+	return err
 }
 
 func CreateTranslation(
@@ -21,7 +47,7 @@ func CreateTranslation(
 	translation model.TutorialTranslation,
 ) error {
 
-	_, err := collection.InsertOne(ctx, translation)
-	fmt.Println("Inserting translation:", translation)
+	_, err := tutorialCollection.InsertOne(ctx, translation)
+
 	return err
 }

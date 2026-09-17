@@ -7,9 +7,9 @@ import (
 )
 
 type Tutorial struct {
-	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TutorialID string             `bson:"tutorial_id" json:"tutorialId"`
-	AppName string             `bson:"app_name" json:"appName"`
+	AppName    string             `bson:"app_name" json:"appName"`
 
 	Version  string   `bson:"version" json:"version"`
 	Roles    []string `bson:"roles" json:"roles"`
@@ -20,9 +20,9 @@ type Tutorial struct {
 }
 
 type TutorialTranslation struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TutorialID string             `bson:"tutorial_id" json:"tutorialId"`
-	Language string             `bson:"language" json:"language"`
+	Language   string             `bson:"language" json:"language"`
 
 	VideoTitle       string `bson:"video_title" json:"videoTitle"`
 	VideoDescription string `bson:"video_description" json:"videoDescription"`

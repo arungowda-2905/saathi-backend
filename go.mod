@@ -2,21 +2,19 @@ module saathi-backend
 
 go 1.26.6
 
-require (
-	github.com/joho/godotenv v1.5.1
-	go.mongodb.org/mongo-driver v1.17.10
-	go.mongodb.org/mongo-driver/v2 v2.8.0
-)
+require go.mongodb.org/mongo-driver v1.17.10
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/montanaflynn/stats v0.7.1 // indirect
 )
 
 require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/gofiber/fiber/v2 v2.52.15
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
