@@ -11,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"saathi-backend/gcs"
+	"saathi-backend/model"
 )
 
 type TutorialService1 struct {
@@ -140,6 +141,7 @@ func (s *TutorialService) SearchTutorials(
 
 	query = strings.TrimSpace(query)
 	selectedLanguage = strings.TrimSpace(selectedLanguage)
+	role = strings.TrimSpace(role)
 
 	if query == "" {
 		return nil, fmt.Errorf("search query cannot be empty")
@@ -149,20 +151,32 @@ func (s *TutorialService) SearchTutorials(
 		return nil, fmt.Errorf("language cannot be empty")
 	}
 
+	if role == "" {
+		return nil, fmt.Errorf("role cannot be empty")
+	}
+
 	// Search tutorials
 	tutorials, err := s.Repository.SearchTutorials(query)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(tutorials) == 0 {
+	filteredTutorials := make([]model.Tutorial, 0)
+	for _, tutorial := range tutorials {
+		if !matchesRole(role, tutorial.Roles) {
+			continue
+		}
+		filteredTutorials = append(filteredTutorials, tutorial)
+	}
+
+	if len(filteredTutorials) == 0 {
 		return []fiber.Map{}, nil
 	}
 
 	// Collect translation IDs
 	translationIDs := make([]string, 0)
 
-	for _, tutorial := range tutorials {
+	for _, tutorial := range filteredTutorials {
 
 		translationID, exists :=
 			tutorial.Languages[selectedLanguage]
@@ -186,9 +200,9 @@ func (s *TutorialService) SearchTutorials(
 	}
 
 	// Build response
-	results := make([]fiber.Map, 0, len(tutorials))
+	results := make([]fiber.Map, 0, len(filteredTutorials))
 
-	for _, tutorial := range tutorials {
+	for _, tutorial := range filteredTutorials {
 
 		result := fiber.Map{
 			"tutorialId":          tutorial.TutorialID,
@@ -238,4 +252,20 @@ func (s *TutorialService) SearchTutorials(
 	}
 
 	return results, nil
+}
+
+func matchesRole(requestedRole string, roles []string) bool {
+	if requestedRole == "" || len(roles) == 0 {
+		return false
+	}
+
+	req := strings.ToLower(strings.TrimSpace(requestedRole))
+
+	for _, role := range roles {
+		if strings.EqualFold(strings.TrimSpace(role), req) {
+			return true
+		}
+	}
+
+	return false
 }

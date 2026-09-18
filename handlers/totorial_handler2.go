@@ -165,6 +165,15 @@ func (h *TutorialHandler) SearchTutorials(c *fiber.Ctx) error {
 		)
 	}
 
+	if len(results) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(
+			fiber.Map{
+				"success": false,
+				"message": "No video found",
+			},
+		)
+	}
+
 	return c.JSON(
 		fiber.Map{
 			"success": true,
