@@ -1,4 +1,4 @@
-package tutorialhandler
+package handlers
 
 import (
 	"context"
@@ -67,7 +67,8 @@ func (h *TutorialHandler) CreateTranslation(
 
 	var req dto.CreateTranslationRequest
 
-	if err := c.BodyParser(&req); err != nil {return c.Status(fiber.StatusBadRequest,).JSON(fiber.Map{
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 
 			"success": false,
 			"message": "Invalid request body",
@@ -79,7 +80,7 @@ func (h *TutorialHandler) CreateTranslation(
 	// 2. Create context with timeout
 	// -----------------------------------------
 
-	ctx, cancel := context.WithTimeout(context.Background(),10*time.Second,)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 	defer cancel()
 

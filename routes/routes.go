@@ -1,16 +1,18 @@
 package routes
 
 import (
-	tutorialhandler "saathi-backend/handlers"
+	"saathi-backend/handlers"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, tutorialHandler *tutorialhandler.TutorialHandler) {
+func SetupRoutes(app *fiber.App, tutorialHandler *handlers.TutorialHandler, tutorialHandler1 *handlers.TutorialHandler1) {
 
 	api := app.Group("/saathi/api")
 
 	api.Post("/v1/tutorials", tutorialHandler.CreateTutorial)
 	api.Post("/v1/translations", tutorialHandler.CreateTranslation)
 
+	api.Get("/v1/:videoId", tutorialHandler1.GetVideo)
+	api.Get("/v1/thumbnail/:thumbnailId", tutorialHandler1.GetTutorialThumbnailByID)
 }
