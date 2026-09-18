@@ -69,9 +69,9 @@ func (h *TutorialHandler) CreateTutorial(c *fiber.Ctx) error {
 	}
 
 	return c.Status(http.StatusCreated).JSON(fiber.Map{
-		"success": true,
-		"message": "Tutorial created successfully",
-		"data":    tutorial,
+		"success":     true,
+		"message":     "Tutorial created successfully",
+		"tutorial_id": tutorial,
 	})
 }
 
@@ -79,9 +79,7 @@ func (h *TutorialHandler) CreateTranslation(
 	c *fiber.Ctx,
 ) error {
 
-	// -----------------------------------------
 	// 1. Parse request body
-	// -----------------------------------------
 
 	var req dto.CreateTranslationRequest
 
@@ -94,19 +92,15 @@ func (h *TutorialHandler) CreateTranslation(
 		})
 	}
 
-	// -----------------------------------------
 	// 2. Create context with timeout
-	// -----------------------------------------
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 	defer cancel()
 
-	// -----------------------------------------
 	// 3. Call service
-	// -----------------------------------------
 
-	translation, err := h.Service.CreateTranslation(
+	_, err := h.Service.CreateTranslation(
 		ctx,
 		req,
 	)
@@ -132,7 +126,7 @@ func (h *TutorialHandler) CreateTranslation(
 
 		"success": true,
 		"message": "Translation created successfully",
-		"data":    translation,
+		// "data":    translation,
 	})
 }
 
@@ -358,3 +352,47 @@ func validateThumbnailContent(file multipart.File) error {
 	return nil
 }
 
+func (h *TutorialHandler) GetDetailsByRole(c *fiber.Ctx) error {
+
+	userRole := c.Get("X-Role")
+	if userRole == "" {
+		userRole = c.Query("X-Role")
+	}
+	if userRole == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "User role not found",
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
+	defer cancel()
+
+	appCounts, err := h.Service.GetDetailsByRole(
+		ctx,
+		userRole,
+	)
+
+	if err != nil {
+
+		if errors.Is(err, tutorialservice.ErrRoleNotFound) {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "User role not found",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch tutorials",
+		})
+	}
+
+	if len(appCounts) == 0 {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "No tutorials found for this role",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(appCounts)
+}

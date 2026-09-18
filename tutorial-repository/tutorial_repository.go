@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"saathi-backend/dto"
 	"saathi-backend/gcs"
 	"saathi-backend/model"
 
@@ -139,4 +140,55 @@ func (r *TutorialRepository) UploadVideoThumbnail(
 	}
 
 	return nil
+}
+func (r *TutorialRepository) GetTutorialsByRoles(
+	ctx context.Context,
+	roles []string,
+) ([]dto.AppCountResponseDTO, error) {
+
+	pipeline := mongo.Pipeline{
+		// 1. Filter by role and active tutorials
+		{
+			{Key: "$match", Value: bson.D{
+				{Key: "roles", Value: bson.D{
+					{Key: "$in", Value: roles},
+				}},
+				{Key: "is_active", Value: true},
+			}},
+		},
+
+		// 2. Group by app_name and count
+		{
+			{Key: "$group", Value: bson.D{
+				{Key: "_id", Value: "$app_name"},
+				{Key: "count", Value: bson.D{
+					{Key: "$sum", Value: 1},
+				}},
+			}},
+		},
+
+		// 3. Convert _id to app_name
+		{
+			{Key: "$project", Value: bson.D{
+				{Key: "_id", Value: 0},
+				{Key: "app_name", Value: "$_id"},
+				{Key: "count", Value: 1},
+			}},
+		},
+	}
+
+	cursor, err := r.Collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(ctx)
+
+	appCounts := make([]dto.AppCountResponseDTO, 0)
+
+	if err := cursor.All(ctx, &appCounts); err != nil {
+		return nil, err
+	}
+
+	return appCounts, nil
 }

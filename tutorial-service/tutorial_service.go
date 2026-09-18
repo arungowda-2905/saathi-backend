@@ -18,6 +18,8 @@ import (
 	"github.com/google/uuid"
 )
 
+var ErrRoleNotFound = errors.New("user role not found")
+
 type TutorialService struct {
 	Repository            *tutorialrepository.TutorialRepository
 	TranslationRepository *tutorialrepository.TranslationRepository
@@ -46,39 +48,39 @@ func NewTutorialService(
 func (s *TutorialService) CreateTutorial(
 	ctx context.Context,
 	req dto.CreateTutorialRequest,
-) (*model.Tutorial, error) {
+) (string, error) {
 
 	// Basic validation
 	if strings.TrimSpace(req.AppName) == "" {
-		return nil, errors.New("appName is required")
+		return "", errors.New("appName is required")
 	}
 
 	if strings.TrimSpace(req.TutorialTitle) == "" {
-		return nil, errors.New("tutorialTitle is required")
+		return "", errors.New("tutorialTitle is required")
 	}
 
 	if strings.TrimSpace(req.TutorialDescription) == "" {
-		return nil, errors.New("tutorialDescription is required")
+		return "", errors.New("tutorialDescription is required")
 	}
 
 	if strings.TrimSpace(req.VideoBucket) == "" {
-		return nil, errors.New("videoBucket is required")
+		return "", errors.New("videoBucket is required")
 	}
 
 	if strings.TrimSpace(req.ThumbnailImage) == "" {
-		return nil, errors.New("titleImage is required")
+		return "", errors.New("titleImage is required")
 	}
 
 	if strings.TrimSpace(req.Duration) == "" {
-		return nil, errors.New("duration is required")
+		return "", errors.New("duration is required")
 	}
 
 	if strings.TrimSpace(req.Version) == "" {
-		return nil, errors.New("version is required")
+		return "", errors.New("version is required")
 	}
 
 	if len(req.Roles) == 0 {
-		return nil, errors.New("at least one role is required")
+		return "", errors.New("at least one role is required")
 	}
 
 	// Generate unique UUID
@@ -107,10 +109,10 @@ func (s *TutorialService) CreateTutorial(
 
 	err := s.Repository.CreateTutorial(ctx, tutorial)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return tutorial, nil
+	return tutorial.TutorialID, nil
 }
 
 func (s *TutorialService) CreateTranslation(
@@ -278,4 +280,32 @@ func (s *TutorialService) UploadVideoAndThumbnail(
 	}
 
 	return videoBucketUnique, thumbnailUnique, nil
+}
+
+func (s *TutorialService) GetDetailsByRole(
+	ctx context.Context,
+	userRole string,
+) ([]dto.AppCountResponseDTO, error) {
+
+	if strings.TrimSpace(userRole) == "" {
+		return nil, ErrRoleNotFound
+	}
+
+	roles := strings.Split(userRole, ",")
+
+	var cleanedRoles []string
+
+	for _, role := range roles {
+		role = strings.TrimSpace(role)
+
+		if role != "" {
+			cleanedRoles = append(cleanedRoles, role)
+		}
+	}
+
+	if len(cleanedRoles) == 0 {
+		return nil, ErrRoleNotFound
+	}
+
+	return s.Repository.GetTutorialsByRoles(ctx, cleanedRoles)
 }
