@@ -12,7 +12,7 @@ func SetupRoutes(app *fiber.App, tutorialHandler *handlers.TutorialHandler, tuto
 
 	api.Post("/v1/tutorials", tutorialHandler.CreateTutorial)
 	api.Post("/v1/translations", tutorialHandler.CreateTranslation)
-
+	api.Get("/search/v1", tutorialHandler.SearchTutorials)
 	api.Get("/v1/:videoId", tutorialHandler1.GetVideo)
 	api.Get("/v1/thumbnail/:thumbnailId", tutorialHandler1.GetTutorialThumbnailByID)
 }

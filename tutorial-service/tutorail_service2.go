@@ -8,6 +8,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/gofiber/fiber/v2"
+
 	"saathi-backend/gcs"
 )
 
@@ -126,4 +128,114 @@ func (s *TutorialService1) GetTutorialThumbnailByID(
 	defer gcsService.Close()
 
 	return imageBytes, contentType, nil
+}
+
+//for search
+
+func (s *TutorialService) SearchTutorials(
+	query string,
+	selectedLanguage string,
+	role string,
+) ([]fiber.Map, error) {
+
+	query = strings.TrimSpace(query)
+	selectedLanguage = strings.TrimSpace(selectedLanguage)
+
+	if query == "" {
+		return nil, fmt.Errorf("search query cannot be empty")
+	}
+
+	if selectedLanguage == "" {
+		return nil, fmt.Errorf("language cannot be empty")
+	}
+
+	// Search tutorials
+	tutorials, err := s.Repository.SearchTutorials(query)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tutorials) == 0 {
+		return []fiber.Map{}, nil
+	}
+
+	// Collect translation IDs
+	translationIDs := make([]string, 0)
+
+	for _, tutorial := range tutorials {
+
+		translationID, exists :=
+			tutorial.Languages[selectedLanguage]
+
+		if exists && translationID != "" {
+			translationIDs = append(
+				translationIDs,
+				translationID,
+			)
+		}
+	}
+
+	// Get translations
+	translations, err :=
+		s.TranslationRepository.GetTranslationsByIDs(
+			translationIDs,
+		)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Build response
+	results := make([]fiber.Map, 0, len(tutorials))
+
+	for _, tutorial := range tutorials {
+
+		result := fiber.Map{
+			"tutorialId":          tutorial.TutorialID,
+			"appName":             tutorial.AppName,
+			"tutorialTitle":       tutorial.TutorialTitle,
+			"tutorialDescription": tutorial.TutorialDescription,
+			"videoBucket":         tutorial.VideoBucket,
+			"titleImage":          tutorial.ThumbnailImage,
+			"duration":            tutorial.Duration,
+			"language":            "English",
+			"version":             tutorial.Version,
+			"roles":               tutorial.Roles,
+			"isActive":            tutorial.IsActive,
+		}
+
+		translationID, exists :=
+			tutorial.Languages[selectedLanguage]
+
+		if exists && translationID != "" {
+
+			translation, found :=
+				translations[translationID]
+
+			if found {
+
+				result["tutorialTitle"] =
+					translation.TutorialTitle
+
+				result["tutorialDescription"] =
+					translation.TutorialDescription
+
+				result["videoBucket"] =
+					translation.VideoBucket
+
+				result["titleImage"] =
+					translation.ThumbnailImage
+
+				result["duration"] =
+					translation.Duration
+
+				result["language"] =
+					translation.Language
+			}
+		}
+
+		results = append(results, result)
+	}
+
+	return results, nil
 }

@@ -110,3 +110,65 @@ func (h *TutorialHandler1) GetTutorialThumbnailByID(c *fiber.Ctx) error {
 
 	return c.Send(imageBytes)
 }
+
+//search
+
+func (h *TutorialHandler) SearchTutorials(c *fiber.Ctx) error {
+
+	query := c.Query("query")
+	language := c.Query("language")
+	role := c.Query("X-Role")
+
+	fmt.Println("QUERY:", query)
+	fmt.Println("LANGUAGE:", language)
+	fmt.Println("URL:", c.OriginalURL())
+
+	if query == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			fiber.Map{
+				"success": false,
+				"message": "query is empty",
+			},
+		)
+	}
+
+	if language == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			fiber.Map{
+				"success": false,
+				"message": "language is empty",
+			},
+		)
+	}
+
+	if role == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			fiber.Map{
+				"success": false,
+				"message": "role is empty",
+			},
+		)
+	}
+
+	results, err := h.Service.SearchTutorials(
+		query,
+		language,
+		role,
+	)
+
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			fiber.Map{
+				"success": false,
+				"message": err.Error(),
+			},
+		)
+	}
+
+	return c.JSON(
+		fiber.Map{
+			"success": true,
+			"data":    results,
+		},
+	)
+}

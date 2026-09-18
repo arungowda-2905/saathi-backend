@@ -3,12 +3,21 @@ package tutorialrepository
 import (
 	"context"
 	"errors"
+	"regexp"
 	"saathi-backend/model"
 
+	// "saathi-backend/config"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// var collection *mongo.Collection
+// var tutorialCollection *mongo.Collection
+
+//	func InitRepository() {
+//		collection = config.DB.Collection("tutorial_translations")
+//	    tutorialCollection = config.DB.Collection("tutorials")
+//	}
 type TutorialRepository struct {
 	Collection *mongo.Collection
 }
@@ -108,4 +117,86 @@ func (r *TranslationRepository) CreateTranslation(
 	)
 
 	return err
+}
+
+//search
+
+func (r *TutorialRepository) SearchTutorials(
+	query string,
+) ([]model.Tutorial, error) {
+
+	ctx := context.Background()
+
+	searchPattern := regexp.QuoteMeta(query)
+
+	filter := bson.M{
+		"is_active": true,
+		"$or": []bson.M{
+			{
+				"tutorial_title": bson.M{
+					"$regex":   searchPattern,
+					"$options": "i",
+				},
+			},
+			{
+				"tutorial_description": bson.M{
+					"$regex":   searchPattern,
+					"$options": "i",
+				},
+			},
+		},
+	}
+
+	cursor, err := r.Collection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(ctx)
+
+	var tutorials []model.Tutorial
+
+	if err := cursor.All(ctx, &tutorials); err != nil {
+		return nil, err
+	}
+
+	return tutorials, nil
+}
+
+func (r *TranslationRepository) GetTranslationsByIDs(
+	translationIDs []string,
+) (map[string]model.Translation, error) {
+
+	ctx := context.Background()
+
+	if len(translationIDs) == 0 {
+		return make(map[string]model.Translation), nil
+	}
+
+	filter := bson.M{
+		"translation_id": bson.M{
+			"$in": translationIDs,
+		},
+	}
+
+	cursor, err := r.Collection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(ctx)
+
+	var translations []model.Translation
+
+	if err := cursor.All(ctx, &translations); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]model.Translation)
+
+	for _, translation := range translations {
+		result[translation.TranslationID] = translation
+	}
+
+	return result, nil
 }
