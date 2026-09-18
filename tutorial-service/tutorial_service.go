@@ -3,6 +3,11 @@ package tutorialservice
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +22,8 @@ type TutorialService struct {
 	Repository            *tutorialrepository.TutorialRepository
 	TranslationRepository *tutorialrepository.TranslationRepository
 	// DB                    *mongo.Client
+	bucketName string
+	prefix     string
 }
 
 func NewTutorialService(
@@ -24,10 +31,14 @@ func NewTutorialService(
 	translationRepository *tutorialrepository.TranslationRepository,
 	//client *mongo.Client,
 ) *TutorialService {
+	bucketName := strings.TrimSpace(os.Getenv("GCS_VIDEO_BUCKET"))
+	prefix := strings.TrimSpace(os.Getenv("GCS_VIDEO_PREFIX"))
 
 	return &TutorialService{
 		Repository:            repository,
 		TranslationRepository: translationRepository,
+		bucketName:            bucketName,
+		prefix:                prefix,
 		//DB:                    client,
 	}
 }
@@ -199,4 +210,72 @@ func (s *TutorialService) CreateTranslation(
 
 	// 14. Return created translation
 	return translation, nil
+}
+
+func (s *TutorialService) UploadVideoAndThumbnail(
+	ctx context.Context,
+	videoFileName string,
+	videoFile io.Reader,
+	thumbnailFileName string,
+	thumbnailFile io.Reader,
+) (string, string, error) {
+
+	if s.bucketName == "" {
+		return "", "", fmt.Errorf("GCS_VIDEO_BUCKET is not configured")
+	}
+
+	// videoBucketUUID := uuid.New().String()
+	// thumbnailUUID := uuid.New().String()
+	videoBucketUnique := fmt.Sprintf("%d%s", time.Now().UnixNano(), strings.ToLower(filepath.Ext(videoFileName)))
+	thumbnailUnique := fmt.Sprintf("%d%s", time.Now().UnixNano(), strings.ToLower(filepath.Ext(thumbnailFileName)))
+
+	videoFolder := path.Join(
+		strings.TrimSuffix(s.prefix, "/"),
+		"video",
+	)
+	thumbnailFolder := path.Join(
+		strings.TrimSuffix(s.prefix, "/"),
+		"thumbnail",
+	)
+
+	// GCS object names
+	videoObjectName := path.Join(
+		videoFolder,
+		videoBucketUnique,
+	)
+
+	thumbnailObjectName := path.Join(
+		thumbnailFolder,
+		thumbnailUnique,
+	)
+
+	// Upload video
+	err := s.Repository.UploadVideoThumbnail(
+		ctx,
+		s.bucketName,
+		videoObjectName,
+		videoFile,
+	)
+	if err != nil {
+		return "", "", fmt.Errorf(
+			"failed to upload video: %w",
+			err,
+		)
+	}
+
+	// Upload thumbnail
+	err = s.Repository.UploadVideoThumbnail(
+		ctx,
+		s.bucketName,
+		thumbnailObjectName,
+		thumbnailFile,
+	)
+	if err != nil {
+		return "", "", fmt.Errorf(
+			"failed to upload thumbnail: %w",
+			err,
+		)
+	}
+
+	return videoBucketUnique, thumbnailUnique, nil
 }

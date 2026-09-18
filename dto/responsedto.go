@@ -21,3 +21,8 @@ type CreateTranslationRequest struct {
 	Duration            string `json:"duration"`
 	Language            string `json:"language"`
 }
+
+type AppCountResponseDTO struct {
+	AppName string `json:"app_name" bson:"app_name"`
+	Count   int64  `json:"count" bson:"count"`
+}

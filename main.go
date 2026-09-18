@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"saathi-backend/config"
+	"saathi-backend/gcs"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
@@ -83,6 +85,17 @@ func main() {
 
 	log.Printf("GCS video prefix: %s", prefix)
 
+	// Create GCS service
+	gcsService, err := gcs.NewService(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to initialize GCS service: %v", err)
+	}
+	defer func() {
+		if err := gcsService.Close(); err != nil {
+			log.Printf("Failed to close GCS service: %v", err)
+		}
+	}()
+
 	// Create tutorial service
 	tutorialService1 := tutorialservice.NewTutorialService1(prefix)
 
@@ -91,6 +104,7 @@ func main() {
 	// Tutorial repository
 	tutorialRepository := tutorialrepository.NewTutorialRepository(
 		config.DB.Collection("tutorials"),
+		gcsService,
 	)
 
 	// Translation repository

@@ -10,6 +10,7 @@ func SetupRoutes(app *fiber.App, tutorialHandler *handlers.TutorialHandler, tuto
 
 	api := app.Group("/saathi/api")
 
+	api.Post("/v1/upload", tutorialHandler.UploadVideo)
 	api.Post("/v1/tutorials", tutorialHandler.CreateTutorial)
 	api.Post("/v1/translations", tutorialHandler.CreateTranslation)
 

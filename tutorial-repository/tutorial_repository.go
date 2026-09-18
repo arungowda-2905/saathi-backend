@@ -3,6 +3,9 @@ package tutorialrepository
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"saathi-backend/gcs"
 	"saathi-backend/model"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -11,11 +14,16 @@ import (
 
 type TutorialRepository struct {
 	Collection *mongo.Collection
+	gcsService *gcs.Service
 }
 
-func NewTutorialRepository(collection *mongo.Collection) *TutorialRepository {
+func NewTutorialRepository(
+	collection *mongo.Collection,
+	gcsService *gcs.Service,
+) *TutorialRepository {
 	return &TutorialRepository{
 		Collection: collection,
+		gcsService: gcsService,
 	}
 }
 
@@ -108,4 +116,27 @@ func (r *TranslationRepository) CreateTranslation(
 	)
 
 	return err
+}
+
+func (r *TutorialRepository) UploadVideoThumbnail(
+	ctx context.Context,
+	bucketName string,
+	fileName string,
+	file io.Reader,
+) error {
+	if r == nil || r.gcsService == nil {
+		return fmt.Errorf("GCS service is not initialized")
+	}
+
+	err := r.gcsService.UploadVideoThumbnail(
+		ctx,
+		bucketName,
+		fileName,
+		file,
+	)
+	if err != nil {
+		return fmt.Errorf("GCS upload error: %w", err)
+	}
+
+	return nil
 }
